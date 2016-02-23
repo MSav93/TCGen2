@@ -9,9 +9,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,7 +28,6 @@ import java.util.TreeMap;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -66,77 +63,92 @@ import com.SBCLPipe;
 public class Main extends JFrame {
 
   /**
-   * Written by Soh Wei Yu. You're welcome to contact me with any questions: sohweiyu@outlook.com
+   * Application
    */
-  private static final long serialVersionUID = 1L;
+  private static Main frame = null;
+
+  /**
+   * Main Panel
+   */
   private JPanel contentPane;
-  private ArrayList<ArrayList<String[]>> componentList = new ArrayList<ArrayList<String[]>>();
-  private ArrayList<ArrayList<String[]>> AllTSSComponents = new ArrayList<ArrayList<String[]>>();
-  private ArrayList<ArrayList<String[]>> AllORComponents = new ArrayList<ArrayList<String[]>>();
-  private ArrayList<ArrayList<String[]>> AllUAComponents = new ArrayList<ArrayList<String[]>>();
-  private String filenameStr;
 
-  LinkedHashMap<String, ArrayList<ArrayList<Element>>> testPaths =
-      new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
+  /**
+   * Components on Main Panel
+   */
+  private JTabbedPane tabbedPane;
+  private JButton btnGenerateTestCases;
+  private JButton btnGenerateExcel;
 
-  HashMap<String, ArrayList<NodeData>> mapToTag2 = new HashMap<>(); // map block index to tag
-  public LinkedHashMap<String, String[]> listOfTestPaths = new LinkedHashMap<>();
-
-  private ArrayList<String[]> BTArray = new ArrayList<String[]>();
-
+  /**
+   * Components on first tab
+   */
+  private final JLabel lblSelectNodes = new JLabel("Select nodes of interest:");
   private JTable tblNOI;
 
+  /**
+   * Components on second tab
+   */
+  private JComboBox<String> cmbCPComponent = new JComboBox<String>();
+  private JComboBox<String> cmbCPBehaviour = new JComboBox<String>();
+  private final JCheckBox chkCP = new JCheckBox("This is a Target System State");
   private JComboBox<String> cmbInitialState = new JComboBox<String>();
-  private JComboBox<String> cmbTSSComponent = new JComboBox<String>();
-  private JComboBox<String> cmbTSSBehaviour = new JComboBox<String>();
+  private final TextArea taCP = new TextArea();
+
+  /**
+   * Components on third tab
+   */
   private JComboBox<String> cmbORComponent = new JComboBox<String>();
   private JComboBox<String> cmbORBehaviour = new JComboBox<String>();
+  private final JTextArea taORInput = new JTextArea();
+  private final TextArea taORConfigured = new TextArea();
+
+  /**
+   * Components on fourth tab
+   */
   private JComboBox<String> cmbUAComp = new JComboBox<String>();
   private JComboBox<String> cmbUABehaviour = new JComboBox<String>();
-
-
-
-  private final JCheckBox chkTSS = new JCheckBox("This is a Target System State");
+  private final TextArea taUAConfigured = new TextArea();
+  private final JTextArea taUAInput = new JTextArea();
   private final JCheckBox chckbxAppearPreAmble =
       new JCheckBox(
           "This condition should appear in the Pre-Amble/This is an External Input not under user's control");
-  private final JTextArea taORInput = new JTextArea();
-  private final JTextArea txtUA = new JTextArea();
-  private final JLabel lblSelectNodes = new JLabel("Select nodes of interest:");
-  private final TextArea taTSS = new TextArea();
-  private final TextArea taORConfigured = new TextArea();
-  private final TextArea taUserActions = new TextArea();
 
-  public static int instanceCount = 0;
-
-  private int rangeNum = 0;
-
-  private static Main frame = null;
-
-  private Boolean isLoaded = false;
-
-  private String[] comboBoxstr = new String[0];
-
-  HashMap<String, Boolean> nodesOfInterest = new HashMap<>();
-  HashMap<String, Boolean> chosenTSS = new HashMap<>();
-  HashMap<String, String> observableResponses = new HashMap<>();
-  HashMap<String, String[]> userActions = new HashMap<>();
-  HashMap<String, String> mapToTag = new HashMap<>();
-  HashMap<String, String> mapToTagName = new HashMap<>();
-  HashMap<String, Integer> tagToIndexMap = new HashMap<>(); // map tag to block index
-
-  private SBCLPipe sbcl = new SBCLPipe();
+  /**
+   * Maps to store info about BT Model
+   */
   private TreeMap<Integer, BTNode> indexToNodeMap = new TreeMap<Integer, BTNode>();
-  private HashMap<Integer, NodeData> tagToNodeDataMap = new HashMap<Integer, NodeData>();
+  HashMap<String, Integer> tagToIndexMap = new HashMap<>(); // map tag to block index
+  private TreeMap<String, NodeData> tagToNodeDataMap = new TreeMap<String, NodeData>();
   private HashMap<String, ArrayList<NodeData>> compToBehaviourMap =
       new HashMap<String, ArrayList<NodeData>>();
 
+  /**
+   * Variables that must be saved
+   */
+  private String filenameStr;
   private String initialNode;
 
-  private JTabbedPane tabbedPane;
-  private JButton btnGenerateTestPaths;
+  /**
+   * Other
+   */
+  private SBCLPipe sbcl = new SBCLPipe();
 
 
+
+  private static final long serialVersionUID = 1L;
+  LinkedHashMap<String, ArrayList<ArrayList<Element>>> testPaths =
+      new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
+  HashMap<String, ArrayList<NodeData>> mapToTag2 = new HashMap<>(); // map block index to tag
+  public LinkedHashMap<String, String[]> listOfTestPaths = new LinkedHashMap<>();
+
+
+  private Boolean isLoaded = false;
+
+  private String[] potentialCP = new String[0];
+
+  HashMap<String, Boolean> chosenCPs = new HashMap<>();
+  HashMap<String, String> observableResponses = new HashMap<>();
+  HashMap<String, String[]> userActions = new HashMap<>();
 
   /**
    * Launch the application.
@@ -146,13 +158,15 @@ public class Main extends JFrame {
       UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
         | UnsupportedLookAndFeelException e1) {
-      System.err.println("System 'Look and Feel' could not be found. Using Windows 'Look and Feel'");
+      System.err
+          .println("System 'Look and Feel' could not be found. Using Windows 'Look and Feel'");
     }
     try {
       UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
         | UnsupportedLookAndFeelException e1) {
-      System.err.println("Windows 'Look and Feel' could not be found. Using default 'Look and Feel'");
+      System.err
+          .println("Windows 'Look and Feel' could not be found. Using default 'Look and Feel'");
     }
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() {
@@ -169,7 +183,6 @@ public class Main extends JFrame {
           frame = new Main();
           frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
           frame.setVisible(true);
-          instanceCount++;
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -178,23 +191,70 @@ public class Main extends JFrame {
   }
 
   /**
-   * Write label that shows configured TSS nodes.
+   * Clear all previous configurations from memory.
    */
-  public void updateTSSTA() {
-    taTSS.setText("");
-    for (Entry<String, Boolean> node : chosenTSS.entrySet()) {
+  public void clearEverything() {
+    int count = tblNOI.getRowCount();
+    for (int i = 0; i < count; i++) {
+      ((DefaultTableModel) tblNOI.getModel()).removeRow(0);
+    }
+    cmbInitialState.removeAllItems();
+    cmbCPComponent.removeAllItems();
+    cmbCPBehaviour.removeAllItems();
+    cmbORComponent.removeAllItems();
+    cmbORBehaviour.removeAllItems();
+    cmbUAComp.removeAllItems();
+    cmbUABehaviour.removeAllItems();
+
+    testPaths = new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
+
+    listOfTestPaths = new LinkedHashMap<>();
+
+    chosenCPs = new HashMap<>();
+    observableResponses = new HashMap<>();
+    userActions = new HashMap<>();
+    mapToTag2 = new HashMap<>();
+    tagToIndexMap = new HashMap<>();
+    indexToNodeMap = new TreeMap<>();
+
+    potentialCP = new String[0];
+
+    chkCP.setSelected(false);
+
+    chckbxAppearPreAmble.setSelected(false);
+    taORInput.setText("");
+    taUAInput.setText("");
+
+    taCP.setText("");
+
+    taORConfigured.setText("");
+    taUAConfigured.setText("");
+
+    filenameStr = "";
+
+    updateCPTA();
+    updateOTA();
+    updateUATA();
+  }
+
+  /**
+   * Write label that shows configured CP nodes.
+   */
+  public void updateCPTA() {
+    taCP.setText("");
+    for (Entry<String, Boolean> node : chosenCPs.entrySet()) {
       String key = node.getKey();
       Boolean value = node.getValue();
 
       if (value == true) {
-        if (taTSS.getText().equals("")) {
-          taTSS.setText(taTSS.getText() + key);
+        if (taCP.getText().equals("")) {
+          taCP.setText(taCP.getText() + key);
         } else {
-          taTSS.setText(taTSS.getText() + ", \n" + key);
+          taCP.setText(taCP.getText() + ", \n" + key);
         }
       }
     }
-    taTSS.setText(taTSS.getText().replaceAll(";", ": "));
+    taCP.setText(taCP.getText().replaceAll(";", ": "));
   }
 
 
@@ -223,76 +283,20 @@ public class Main extends JFrame {
    * Load the user action for selected component.
    */
   public void updateUATA() {
-    taUserActions.setText("");
+    taUAConfigured.setText("");
     for (Entry<String, String[]> component : userActions.entrySet()) {
       String key = component.getKey();
       String[] value = component.getValue();
 
       if (!value[0].equals("")) {
-        if (taUserActions.getText().equals("")) {
-          taUserActions.setText(taUserActions.getText() + key);
+        if (taUAConfigured.getText().equals("")) {
+          taUAConfigured.setText(taUAConfigured.getText() + key);
         } else {
-          taUserActions.setText(taUserActions.getText() + ", \n" + key);
+          taUAConfigured.setText(taUAConfigured.getText() + ", \n" + key);
         }
       }
     }
-    taUserActions.setText(taUserActions.getText().replaceAll(";", ": "));
-  }
-
-
-  /**
-   * Clear all previous configurations from memory.
-   */
-  public void clearEverything() {
-    int count = tblNOI.getRowCount();
-    for (int i = 0; i < count; i++) {
-      ((DefaultTableModel) tblNOI.getModel()).removeRow(0);
-    }
-    cmbInitialState.removeAllItems();
-    cmbTSSComponent.removeAllItems();
-    cmbTSSBehaviour.removeAllItems();
-    cmbORComponent.removeAllItems();
-    cmbORBehaviour.removeAllItems();
-    cmbUAComp.removeAllItems();
-    cmbUABehaviour.removeAllItems();
-
-    componentList = new ArrayList<ArrayList<String[]>>();
-    AllTSSComponents = new ArrayList<ArrayList<String[]>>();
-    AllORComponents = new ArrayList<ArrayList<String[]>>();
-    AllUAComponents = new ArrayList<ArrayList<String[]>>();
-    testPaths = new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
-
-    listOfTestPaths = new LinkedHashMap<>();
-
-    nodesOfInterest = new HashMap<>();
-    chosenTSS = new HashMap<>();
-    observableResponses = new HashMap<>();
-    userActions = new HashMap<>();
-    mapToTag = new HashMap<>();
-    mapToTagName = new HashMap<>();
-    mapToTag2 = new HashMap<>();
-    tagToIndexMap = new HashMap<>();
-    indexToNodeMap = new TreeMap<>();
-
-    BTArray = new ArrayList<String[]>();
-    comboBoxstr = new String[0];
-
-    chkTSS.setSelected(false);
-
-    chckbxAppearPreAmble.setSelected(false);
-    taORInput.setText("");
-    txtUA.setText("");
-
-    taTSS.setText("");
-
-    taORConfigured.setText("");
-    taUserActions.setText("");
-
-    filenameStr = "";
-
-    updateTSSTA();
-    updateOTA();
-    updateUATA();
+    taUAConfigured.setText(taUAConfigured.getText().replaceAll(";", ": "));
   }
 
 
@@ -300,19 +304,19 @@ public class Main extends JFrame {
    * Populate configuration in Range.
    */
   public void updateRangeTab() {
-    comboBoxstr = new String[indexToNodeMap.size()];
+    potentialCP = new String[indexToNodeMap.size()];
     int i = 0;
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
-        for (Entry<String, Boolean> selectedTSS : chosenTSS.entrySet()) {
-          String tss = selectedTSS.getKey();
-          Boolean selected = selectedTSS.getValue();
+        for (Entry<String, Boolean> selectedCP : chosenCPs.entrySet()) {
+          String cp = selectedCP.getKey();
+          Boolean selected = selectedCP.getValue();
           if (selected) {
-            String[] tssParts = tss.split(";");
-            if (node.getComponent().equals(tssParts[0]) && node.getBehaviour().equals(tssParts[1])) {
+            String[] cpParts = cp.split(";");
+            if (node.getComponent().equals(cpParts[0]) && node.getBehaviour().equals(cpParts[1])) {
 
               if (node.getBehaviourType().equals("STATE-REALISATION")) {
-                comboBoxstr[i] =
+                potentialCP[i] =
                     "Node " + node.getTag() + ": " + node.getComponent() + " - "
                         + node.getBehaviour() + " [" + node.getBehaviourType() + "]";
                 i++;
@@ -336,9 +340,9 @@ public class Main extends JFrame {
         }
       }
     }
-    comboBoxstr = clean(comboBoxstr);
-    Arrays.sort(comboBoxstr, new AlphanumComparator());
-    cmbInitialState.setModel(new DefaultComboBoxModel<String>(comboBoxstr));
+    potentialCP = clean(potentialCP);
+    Arrays.sort(potentialCP, new AlphanumComparator());
+    cmbInitialState.setModel(new DefaultComboBoxModel<String>(potentialCP));
     setRange();
   }
 
@@ -349,12 +353,12 @@ public class Main extends JFrame {
     Set<String> set = new HashSet<String>();
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
-        for (Entry<String, Boolean> selectedTSS : chosenTSS.entrySet()) {
-          String tss = selectedTSS.getKey();
-          Boolean selected = selectedTSS.getValue();
+        for (Entry<String, Boolean> selectedCP : chosenCPs.entrySet()) {
+          String cp = selectedCP.getKey();
+          Boolean selected = selectedCP.getValue();
           if (selected) {
-            String[] tssParts = tss.split(";");
-            if (node.getComponent().equals(tssParts[0]) && node.getBehaviour().equals(tssParts[1])) {
+            String[] cpParts = cp.split(";");
+            if (node.getComponent().equals(cpParts[0]) && node.getBehaviour().equals(cpParts[1])) {
               if (node.getBehaviourType().equals("STATE-REALISATION")) {
                 set.add(node.getComponent() + " - " + node.getBehaviour());
               }
@@ -363,8 +367,8 @@ public class Main extends JFrame {
         }
       }
     }
-    comboBoxstr = set.toArray(new String[0]);
-    Arrays.sort(comboBoxstr, new AlphanumComparator());
+    potentialCP = set.toArray(new String[0]);
+    Arrays.sort(potentialCP, new AlphanumComparator());
 
   }
 
@@ -409,75 +413,21 @@ public class Main extends JFrame {
   }
 
   /**
-   * Return name of component type.
+   * Populate configuration for CP.
    */
+  public void updateCP() {
+    String selectedCP =
+        cmbCPComponent.getSelectedItem().toString() + ";"
+            + cmbCPBehaviour.getSelectedItem().toString();
 
-  public String componentType(String componentType) {
-    if (componentType.equals("#S")) {
-      componentType = "State Realisation";
-    } else if (componentType.equals("#E")) {
-      componentType = "Event";
-    } else if (componentType.equals("#EI")) {
-      componentType = "External Input";
-    } else if (componentType.equals("#EO")) {
-      componentType = "External Output";
-    } else if (componentType.equals("#L")) {
-      componentType = "Selection";
-    } else if (componentType.equals("#G")) {
-      componentType = "Guard";
-    } else if (componentType.equals("#II")) {
-      componentType = "Internal Input Event";
-    } else if (componentType.equals("#IO")) {
-      componentType = "Internal Output Event";
-    } else if (componentType.equals("#A")) {
-      componentType = "Assertion";
-    }
-    return componentType;
-  }
-
-
-  // /**
-  // * Populate configuration for NOI.
-  // */
-  //
-  // public void populateNOI() {
-  // try {
-  // if (nodesOfInterest.get(noiComboBox.getSelectedItem().toString()) != null) {
-  // if (nodesOfInterest.get(noiComboBox.getSelectedItem().toString()) == true) {
-  // chckbxNewCheckBox_1.setSelected(true);
-  // } else {
-  // chckbxNewCheckBox_1.setSelected(false);
-  // }
-  // } else {
-  // chckbxNewCheckBox_1.setSelected(false);
-  // }
-  // } catch (Exception e) {
-  //
-  // }
-  // }
-
-
-  /**
-   * Populate configuration for TSS.
-   */
-
-  public void updateTSS() {
-    try {
-      String selectedTSS =
-          cmbTSSComponent.getSelectedItem().toString() + ";"
-              + cmbTSSBehaviour.getSelectedItem().toString();
-
-      if (chosenTSS.get(selectedTSS) != null) {
-        if (chosenTSS.get(selectedTSS) == true) {
-          chkTSS.setSelected(true);
-        } else {
-          chkTSS.setSelected(false);
-        }
+    if (chosenCPs.get(selectedCP) != null) {
+      if (chosenCPs.get(selectedCP) == true) {
+        chkCP.setSelected(true);
       } else {
-        chkTSS.setSelected(false);
+        chkCP.setSelected(false);
       }
-    } catch (Exception e) {
-
+    } else {
+      chkCP.setSelected(false);
     }
   }
 
@@ -513,7 +463,7 @@ public class Main extends JFrame {
               + cmbUABehaviour.getSelectedItem().toString();
       if (userActions.get(selectedUA) != null) {
         String[] userAction = userActions.get(selectedUA);
-        txtUA.setText(userAction[0]);
+        taUAInput.setText(userAction[0]);
 
         if (userAction[1].equals("true")) {
           chckbxAppearPreAmble.setSelected(true);
@@ -521,7 +471,7 @@ public class Main extends JFrame {
           chckbxAppearPreAmble.setSelected(false);
         }
       } else {
-        txtUA.setText("");
+        taUAInput.setText("");
         chckbxAppearPreAmble.setSelected(false);
       }
     } catch (Exception e) {
@@ -534,7 +484,7 @@ public class Main extends JFrame {
    * Populate test case configuration in TCC file format.
    */
 
-  public void SaveConfig(boolean shutdown) {
+  public void SaveConfig() {
     JFrame parentFrame = new JFrame();
 
     JFileChooser fileChooser = new JFileChooser();
@@ -549,47 +499,7 @@ public class Main extends JFrame {
     int userSelection = fileChooser.showSaveDialog(parentFrame);
 
     if (userSelection == JFileChooser.APPROVE_OPTION) {
-
-      setRange();
-
-      File fileToSave = fileChooser.getSelectedFile();
-      System.out.println("Save as file: " + fileToSave.getAbsolutePath() + ".tcc");
-
-      Object[] arr = new Object[18];
-
-      arr[0] = componentList;
-      arr[1] = AllTSSComponents;
-      arr[2] = AllORComponents;
-      arr[3] = AllUAComponents;
-      arr[4] = nodesOfInterest;
-      arr[5] = chosenTSS;
-      arr[6] = observableResponses;
-      arr[7] = userActions;
-      arr[8] = BTArray;
-      arr[10] = mapToTag;
-      arr[11] = mapToTagName;
-      arr[12] = mapToTag2;
-      arr[13] = listOfTestPaths;
-      arr[14] = testPaths;
-      arr[15] = filenameStr;
-      arr[16] = rangeNum;
-      arr[17] = tagToIndexMap;
-
-      FileOutputStream fos;
-      try {
-        fos = new FileOutputStream(fileToSave.getAbsolutePath() + ".tcc");
-        ObjectOutputStream oos = new ObjectOutputStream(fos);
-        oos.writeObject(arr);
-        oos.close();
-      } catch (Exception e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-      }
-
-      frame.setTitle("TCGen-UI - Saved as " + fileChooser.getSelectedFile().getName() + ".tcc");
-
-      if (shutdown == true)
-        System.exit(0);
+      // TODO Save File here
     }
   }
 
@@ -607,57 +517,7 @@ public class Main extends JFrame {
     JPanel panelMain = new JPanel();
     panelMain.setBounds(63, 5, 0, 900);
     panelMain.setLayout(new GridLayout(0, 1, 0, 0));
-
-    JButton btnSelectTestPaths = new JButton("Select TCP for Deletion");
-    btnSelectTestPaths.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        TestPathsog c = new TestPathsog(frame, listOfTestPaths);
-        c.showCentered();
-      }
-    });
-    btnSelectTestPaths.setEnabled(false);
-    btnSelectTestPaths.setBounds(301, 59, 235, 51);
-    btnSelectTestPaths.setEnabled(false);
-    contentPane.add(btnSelectTestPaths);
-
-    JButton btnGenerateTestCases = new JButton("Generate Test Cases");
-
-    /**
-     * Generate natural language test cases in Excel format.
-     */
-    btnGenerateTestCases.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        // TODO Output to Excel
-      }
-    });
-    btnGenerateTestCases.setEnabled(false);
-    btnGenerateTestCases.setBounds(546, 59, 281, 51);
-    btnGenerateTestCases.setEnabled(false);
-    contentPane.add(btnGenerateTestCases);
-
-    btnGenerateTestPaths = new JButton("Generate Test Case Paths");
-    btnGenerateTestPaths.setEnabled(false);
-    btnGenerateTestPaths.setBounds(10, 59, 281, 51);
-
-    /**
-     * Call API and generate TCPs, pre-amble and post-amble.
-     */
-    btnGenerateTestPaths.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {}
-
-    });
-    contentPane.setLayout(null);
-    contentPane.add(panelMain);
-    contentPane.add(btnGenerateTestPaths);
-
-    JButton btnOpenTestCase = new JButton("Open Test Case Folder");
-    btnOpenTestCase.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        openFolder();
-      }
-    });
-    btnOpenTestCase.setBounds(837, 59, 301, 51);
-    contentPane.add(btnOpenTestCase);
+    createMainButtons(panelMain);
 
     contentPane.add(createMenuBar());
 
@@ -665,11 +525,203 @@ public class Main extends JFrame {
     tabbedPane.setBounds(10, 131, 1131, 660);
     contentPane.add(tabbedPane);
 
+    tabbedPane.addTab(Constants.tab1Name, null, createNOITab(), null);
+    tabbedPane.addTab(Constants.tab2Name, null, createCPTab(), null);
+    tabbedPane.addTab(Constants.tab3Name, null, createOATab(), null);
+    tabbedPane.addTab(Constants.tab4Name, null, createUATab(), null);
+    tabbedPane.addTab(Constants.tab5Name, null, createTPTab(), null);
+
+    for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+      tabbedPane.setEnabledAt(i, false);
+    }
+  }
+
+  private JMenuBar createMenuBar() {
+    JMenuBar menuBar = new JMenuBar();
+    menuBar.setBounds(0, 0, 1158, 21);
+
+    JMenu mnFile = new JMenu("File");
+    menuBar.add(mnFile);
+    mnFile.setMnemonic(KeyEvent.VK_F);
+
+    /**
+     * Load BT File.
+     */
+    JMenuItem mntmLoadBTModel = new JMenuItem("Load BT File");
+    mntmLoadBTModel.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        JFileChooser chooser =
+            new JFileChooser(System.getProperty("user.dir") + System.getProperty("file.separator")
+                + "models");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("BT Model", "bt", "btc");
+        chooser.setFileFilter(filter);
+        chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+        chooser.setMultiSelectionEnabled(true);
+        int retVal = chooser.showOpenDialog(frame);
+
+        if (retVal == JFileChooser.APPROVE_OPTION) {
+          File f = chooser.getSelectedFile();
+          System.out.println("You chose " + f.getPath());
+          filenameStr = (f.getPath()).replace("\\", "/");
+
+          connectToServer();
+
+          loadBTFile(f.getName());
+        } else if (retVal == JFileChooser.CANCEL_OPTION) {
+          System.out.println("You cancelled the choice");
+        } else if (retVal == JFileChooser.ERROR_OPTION) {
+          printErrorMessage("error|6|");
+        }
+
+      }
+
+      private void loadBTFile(String filename) {
+        // load bt-file into BTAnalyser
+        System.out.println("Processing bt file");
+        sbcl.sendCommand("(process-bt-file \"" + filenameStr + "\")");
+
+        // important to ensure resulting TCPs are reachable/valid
+        System.out.println("Ensure TCPs are reachable");
+        sbcl.sendCommand("(reachable-states)");
+
+        tagToIndexMap = new HashMap<>();
+
+        System.out.println("Building BT");
+        String result = sbcl.sendCommand("(print-bt)");
+        if (!result.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
+          clearEverything();
+          BTModelReader modelReader = new BTModelReader(result);
+          indexToNodeMap = modelReader.getIndexToNodeMap();
+          tagToIndexMap = modelReader.getTagToIndexMap();
+        } else {
+          printErrorMessage("error|6|");
+          return;
+        }
+
+        populateData();
+        isLoaded = true;
+        frame.setTitle("TP-Optimizer - " + filename);
+      }
+    });
+    mnFile.add(mntmLoadBTModel);
+
+
+    /**
+     * Load configuration file for TCGen-UI
+     */
+    JMenuItem mntmLoadConfig = new JMenuItem("Load Test Case Config");
+    mntmLoadConfig.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        // TODO Load Config here
+      }
+    });
+    mnFile.add(mntmLoadConfig);
+
+    JMenuItem mntmSaveConfig = new JMenuItem("Save Test Case Config");
+    mntmSaveConfig.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        SaveConfig();
+      }
+    });
+    mnFile.add(mntmSaveConfig);
+
+    JMenuItem mntmExit = new JMenuItem("Exit");
+    mntmExit.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        if (isLoaded == false) {
+          System.exit(0);
+        } else {
+          int dialogButton = JOptionPane.YES_NO_OPTION;
+          int dialogResult =
+              JOptionPane.showConfirmDialog(null,
+                  "Would you like to save your configurations first?", "Warning", dialogButton);
+          if (dialogResult == JOptionPane.YES_OPTION) {
+            SaveConfig();
+            System.exit(0);
+          }
+          System.exit(0);
+        }
+      }
+    });
+    mnFile.add(mntmExit);
+
+    JMenu mnHelp = new JMenu("Help");
+    menuBar.add(mnHelp);
+
+    JMenuItem mntmTips = new JMenuItem("Tips");
+    mntmTips.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        JOptionPane
+            .showMessageDialog(
+                frame,
+                "Instructions on generating test cases: \n\n1) File > Load BT > Choose BT file \n2) Fill in 'Nodes of Interest', 'Target System State', and 'Range' (you must select Target System State before Range) \n3) Click on Generate Test Paths \n4) Fill in Observable Responses and User Actions \n5) Click Generate Test Cases \n6) Save Config by File > Save Test Case Config\n\nDo note that you do not need to fill in 'Observable Responses' and 'User Actions' to generate test paths, but that is required for generating test cases.",
+                "Tips", JOptionPane.INFORMATION_MESSAGE);
+      }
+    });
+    mnHelp.add(mntmTips);
+
+    JMenuItem mntmAbout = new JMenuItem("About");
+    mntmAbout.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        JOptionPane
+            .showMessageDialog(
+                frame,
+                "TP-Optimizer\r\nBy Mitchell Savell\r\nmitchellsavell@gmail.com\r\n\r\nBased on TCGen-UI\r\nBy Soh Wei Yu",
+                "About", JOptionPane.PLAIN_MESSAGE);
+
+      }
+    });
+    mnHelp.add(mntmAbout);
+    return menuBar;
+  }
+
+  private void createMainButtons(JPanel panelMain) {
+
+    btnGenerateExcel = new JButton("Generate Excel Output");
+    btnGenerateExcel.setEnabled(false);
+    btnGenerateExcel.setBounds(425, 59, 281, 51);
+    btnGenerateExcel.setEnabled(false);
+    /**
+     * Generate natural language test cases in Excel format.
+     */
+    btnGenerateExcel.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        // TODO Output to Excel
+      }
+    });
+    contentPane.add(btnGenerateExcel);
+
+    btnGenerateTestCases = new JButton("Generate Test Cases");
+    btnGenerateTestCases.setEnabled(false);
+    btnGenerateTestCases.setBounds(72, 59, 281, 51);
+    /**
+     * Call API and generate TCPs, pre-amble and post-amble.
+     */
+    btnGenerateTestCases.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab5Name), true);
+      }
+    });
+    contentPane.setLayout(null);
+    contentPane.add(panelMain);
+    contentPane.add(btnGenerateTestCases);
+
+    JButton btnOpenTestCase = new JButton("Open Test Case Folder");
+    btnOpenTestCase.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        openFolder();
+      }
+    });
+    btnOpenTestCase.setBounds(778, 59, 301, 51);
+    contentPane.add(btnOpenTestCase);
+  }
+
+  private JPanel createNOITab() {
     JPanel panelNOI = new JPanel();
-    tabbedPane.addTab("Nodes of Interest", null, panelNOI, null);
+
     panelNOI.setLayout(null);
     lblSelectNodes.setFont(new Font("Tahoma", Font.PLAIN, 18));
-
     lblSelectNodes.setBounds(53, 47, 191, 22);
     panelNOI.add(lblSelectNodes);
 
@@ -701,93 +753,99 @@ public class Main extends JFrame {
     tblNOI.getColumnModel().getColumn(2).setResizable(false);
     tblNOI.getColumnModel().getColumn(3).setResizable(false);
     tblNOI.getColumnModel().getColumn(4).setResizable(false);
+    return panelNOI;
+  }
 
-    JPanel panelTSS = new JPanel();
-    tabbedPane.addTab("Target System States", null, panelTSS, null);
-    panelTSS.setLayout(null);
+  private JPanel createCPTab() {
+    JPanel panelCP = new JPanel();
 
-    JLabel lblTSSComponent = new JLabel("Select Component Name:");
-    lblTSSComponent.setBounds(125, 136, 121, 14);
-    panelTSS.add(lblTSSComponent);
+    panelCP.setLayout(null);
 
-    JLabel lblTSSBehaviour = new JLabel("Select Behaviour:");
-    lblTSSBehaviour.setBounds(162, 183, 84, 14);
-    panelTSS.add(lblTSSBehaviour);
+    JLabel lblCPComponent = new JLabel("Select Component Name:");
+    lblCPComponent.setBounds(125, 136, 121, 14);
+    panelCP.add(lblCPComponent);
 
-    cmbTSSComponent.setBounds(256, 127, 313, 32);
-    panelTSS.add(cmbTSSComponent);
+    JLabel lblCPBehaviour = new JLabel("Select Behaviour:");
+    lblCPBehaviour.setBounds(162, 183, 84, 14);
+    panelCP.add(lblCPBehaviour);
 
-    cmbTSSBehaviour.setBounds(256, 174, 313, 32);
-    panelTSS.add(cmbTSSBehaviour);
+    cmbCPComponent.setBounds(256, 127, 313, 32);
+    panelCP.add(cmbCPComponent);
 
-    chkTSS.addActionListener(new ActionListener() {
+    cmbCPBehaviour.setBounds(256, 174, 313, 32);
+    panelCP.add(cmbCPBehaviour);
+
+    chkCP.addActionListener(new ActionListener() {
 
       public void actionPerformed(ActionEvent arg0) {
-        if (cmbTSSComponent.getSelectedItem() != null && cmbTSSBehaviour.getSelectedItem() != null) {
-          String selectedTSS =
-              cmbTSSComponent.getSelectedItem().toString() + ";"
-                  + cmbTSSBehaviour.getSelectedItem().toString();
+        if (cmbCPComponent.getSelectedItem() != null && cmbCPBehaviour.getSelectedItem() != null) {
+          String selectedCP =
+              cmbCPComponent.getSelectedItem().toString() + ";"
+                  + cmbCPBehaviour.getSelectedItem().toString();
 
-          if (chkTSS.isSelected()) {
-            chosenTSS.put(selectedTSS, true);
+          if (chkCP.isSelected()) {
+            chosenCPs.put(selectedCP, true);
 
           } else {
-            chosenTSS.put(selectedTSS, false);
+            chosenCPs.put(selectedCP, false);
           }
 
           updateRangeTab();
         }
-        updateTSSTA();
+        updateCPTA();
       }
     });
-    chkTSS.setBounds(256, 224, 165, 23);
-    panelTSS.add(chkTSS);
+    chkCP.setBounds(256, 224, 165, 23);
+    panelCP.add(chkCP);
 
-    cmbTSSComponent.addActionListener(new ActionListener() {
+    cmbCPComponent.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent action) {
         System.out.println(action.getActionCommand());
         if (action.getActionCommand().equals("comboBoxChanged")) {
-          updateTSSDisplay();
+          updateCPDisplay();
         }
       }
     });
 
-    cmbTSSBehaviour.addActionListener(new ActionListener() {
+    cmbCPBehaviour.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        updateTSS();
+        updateCP();
       }
     });
 
 
-    JLabel lblTSSNote1 = new JLabel("Note: Selection restricted to state realisation nodes");
-    lblTSSNote1.setBounds(194, 258, 247, 14);
-    panelTSS.add(lblTSSNote1);
+    JLabel lblCPNote1 = new JLabel("Note: Selection restricted to state realisation nodes");
+    lblCPNote1.setBounds(194, 258, 247, 14);
+    panelCP.add(lblCPNote1);
 
-    JLabel lblSelectedTSS = new JLabel("Selected target system states:");
-    lblSelectedTSS.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblSelectedTSS.setBounds(743, 14, 236, 22);
-    panelTSS.add(lblSelectedTSS);
-    taTSS.setEditable(false);
+    JLabel lblSelectedCP = new JLabel("Selected checkpoints:");
+    lblSelectedCP.setFont(new Font("Tahoma", Font.PLAIN, 18));
+    lblSelectedCP.setBounds(743, 14, 236, 22);
+    panelCP.add(lblSelectedCP);
+    taCP.setEditable(false);
 
-    taTSS.setBounds(743, 42, 345, 580);
-    panelTSS.add(taTSS);
+    taCP.setBounds(743, 42, 345, 580);
+    panelCP.add(taCP);
     cmbInitialState.setBounds(256, 333, 376, 32);
-    panelTSS.add(cmbInitialState);
+    panelCP.add(cmbInitialState);
 
-    JLabel lblTSSNote2 =
+    JLabel lblCPNote2 =
         new JLabel("Note: Selection restricted to Target System States which you have chosen.");
-    lblTSSNote2.setBounds(162, 395, 361, 14);
-    panelTSS.add(lblTSSNote2);
+    lblCPNote2.setBounds(162, 395, 361, 14);
+    panelCP.add(lblCPNote2);
 
     JLabel lblInitialState = new JLabel("Select Initial State of the System:");
     lblInitialState.setBounds(85, 342, 161, 14);
-    panelTSS.add(lblInitialState);
+    panelCP.add(lblInitialState);
     cmbInitialState.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         initialNode = cmbInitialState.getSelectedItem().toString();
       }
     });
+    return panelCP;
+  }
 
+  private JPanel createOATab() {
     JPanel panelOA = new JPanel();
     tabbedPane.addTab("Observable Responses", null, panelOA, null);
     panelOA.setLayout(null);
@@ -857,18 +915,21 @@ public class Main extends JFrame {
     taORConfigured.setBounds(676, 238, 440, 383);
 
     panelOA.add(taORConfigured);
+    return panelOA;
+  }
 
+  private JPanel createUATab() {
     JPanel panelUA = new JPanel();
     tabbedPane.addTab("User Actions/External Inputs", null, panelUA, null);
     panelUA.setLayout(null);
 
-    JLabel label_5 = new JLabel("Select Component Name:");
-    label_5.setBounds(303, 31, 121, 14);
-    panelUA.add(label_5);
+    JLabel lblUAComponent = new JLabel("Select Component Name:");
+    lblUAComponent.setBounds(303, 31, 121, 14);
+    panelUA.add(lblUAComponent);
 
-    JLabel label_6 = new JLabel("Select Behaviour:");
-    label_6.setBounds(340, 75, 84, 14);
-    panelUA.add(label_6);
+    JLabel lblUABehaviour = new JLabel("Select Behaviour:");
+    lblUABehaviour.setBounds(340, 75, 84, 14);
+    panelUA.add(lblUABehaviour);
 
     cmbUAComp.setBounds(434, 22, 313, 32);
     panelUA.add(cmbUABehaviour);
@@ -877,19 +938,19 @@ public class Main extends JFrame {
     panelUA.add(cmbUAComp);
 
 
-    JLabel lblUserActioninput = new JLabel("Action to be taken:");
-    lblUserActioninput.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblUserActioninput.setBounds(10, 185, 151, 22);
-    panelUA.add(lblUserActioninput);
-    txtUA.setLineWrap(true);
+    JLabel lblUAinput = new JLabel("Action to be taken:");
+    lblUAinput.setFont(new Font("Tahoma", Font.PLAIN, 18));
+    lblUAinput.setBounds(10, 185, 151, 22);
+    panelUA.add(lblUAinput);
+    taUAInput.setLineWrap(true);
 
-    txtUA.addKeyListener(new KeyAdapter() {
+    taUAInput.addKeyListener(new KeyAdapter() {
       @Override
       public void keyReleased(KeyEvent e) {
         if (cmbUAComp.getSelectedItem() != null && cmbUABehaviour.getSelectedItem() != null
             && chckbxAppearPreAmble.isSelected() == true) {
           String[] userAction = new String[2];
-          userAction[0] = txtUA.getText();
+          userAction[0] = taUAInput.getText();
           userAction[1] = "true";
           userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
               + cmbUABehaviour.getSelectedItem().toString(), userAction);
@@ -897,7 +958,7 @@ public class Main extends JFrame {
             && chckbxAppearPreAmble.isSelected() == false) {
 
           String[] userAction = new String[2];
-          userAction[0] = txtUA.getText();
+          userAction[0] = taUAInput.getText();
           userAction[1] = "false";
           userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
               + cmbUABehaviour.getSelectedItem().toString(), userAction);
@@ -905,8 +966,8 @@ public class Main extends JFrame {
         updateUATA();
       }
     });
-    txtUA.setBounds(10, 218, 637, 404);
-    panelUA.add(txtUA);
+    taUAInput.setBounds(10, 218, 637, 404);
+    panelUA.add(taUAInput);
 
 
     cmbUAComp.addActionListener(new ActionListener() {
@@ -929,9 +990,9 @@ public class Main extends JFrame {
     panelUA.add(lblNoteSelectionRestricted_2);
 
 
-    taUserActions.setEditable(false);
-    taUserActions.setBounds(676, 218, 440, 404);
-    panelUA.add(taUserActions);
+    taUAConfigured.setEditable(false);
+    taUAConfigured.setBounds(676, 218, 440, 404);
+    panelUA.add(taUAConfigured);
 
     JLabel lblUserActionsConfigured = new JLabel("Actions configured for:");
     lblUserActionsConfigured.setFont(new Font("Tahoma", Font.PLAIN, 18));
@@ -939,16 +1000,16 @@ public class Main extends JFrame {
     panelUA.add(lblUserActionsConfigured);
     chckbxAppearPreAmble.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        if (!txtUA.getText().equals("")) {
+        if (!taUAInput.getText().equals("")) {
           if (chckbxAppearPreAmble.isSelected() == true) {
             String[] userAction = new String[2];
-            userAction[0] = txtUA.getText();
+            userAction[0] = taUAInput.getText();
             userAction[1] = "true";
             userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
                 + cmbUABehaviour.getSelectedItem().toString(), userAction);
           } else {
             String[] userAction = new String[2];
-            userAction[0] = txtUA.getText();
+            userAction[0] = taUAInput.getText();
             userAction[1] = "false";
             userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
                 + cmbUABehaviour.getSelectedItem().toString(), userAction);
@@ -959,8 +1020,10 @@ public class Main extends JFrame {
 
     chckbxAppearPreAmble.setBounds(434, 105, 481, 23);
     panelUA.add(chckbxAppearPreAmble);
+    return panelUA;
+  }
 
-
+  private JPanel createTPTab() {
     JPanel panelTP = new JPanel();
 
     List<TestPath> feeds = new ArrayList<TestPath>();
@@ -974,149 +1037,8 @@ public class Main extends JFrame {
     table.setRowHeight(60);
     table.setBounds(731, 11, 500, 610);
     panelTP.add(table);
-
-    tabbedPane.addTab("Join Test Paths", null, panelTP, null);
+    return panelTP;
   }
-
-  private JMenuBar createMenuBar() {
-    JMenuBar menuBar = new JMenuBar();
-    menuBar.setBounds(0, 0, 185, 40);
-
-    JMenu mnFile = new JMenu("File");
-    menuBar.add(mnFile);
-    mnFile.setMnemonic(KeyEvent.VK_F);
-
-    /**
-     * Load BT File.
-     */
-    JMenuItem mntmLoadBtFile = new JMenuItem("Load BT File");
-    mntmLoadBtFile.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        JFileChooser chooser = new JFileChooser(System.getProperty("user.dir") + System.getProperty("file.separator")
-            + "models");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("BT Model", "bt", "btc");
-        chooser.setFileFilter(filter);
-        chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-        chooser.setMultiSelectionEnabled(true);
-        int retVal = chooser.showOpenDialog(frame);
-
-        if (retVal == JFileChooser.APPROVE_OPTION) {
-          File f = chooser.getSelectedFile();
-          System.out.println("You chose " + f.getPath());
-          filenameStr = (f.getPath()).replace("\\", "/");
-
-          connectToServer();
-
-          openBTFile(f.getName());
-        } else if (retVal == JFileChooser.CANCEL_OPTION) {
-          System.out.println("You cancelled the choice");
-        } else if (retVal == JFileChooser.ERROR_OPTION) {
-          printErrorMessage("error|6|");
-        }
-
-      }
-
-      private void openBTFile(String filename) {
-        // load bt-file into BTAnalyser
-        System.out.println("Processing bt file");
-        sbcl.sendCommand("(process-bt-file \"" + filenameStr + "\")");
-
-        // important to ensure resulting TCPs are reachable/valid
-        System.out.println("Ensure TCPs are reachable");
-        sbcl.sendCommand("(reachable-states)");
-
-        tagToIndexMap = new HashMap<>();
-
-        System.out.println("Building BT");
-        String result = sbcl.sendCommand("(print-bt)");
-        if (!result.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
-          clearEverything();
-          BTModelReader modelReader = new BTModelReader(result);
-          indexToNodeMap = modelReader.getIndexToNodeMap();
-          tagToIndexMap = modelReader.getTagToIndexMap();
-        } else {
-          printErrorMessage("error|6|");
-          return;
-        }
-
-        populateData();
-        isLoaded = true;
-        frame.setTitle("TP-Optimizer - " + filename);
-      }
-    });
-    mnFile.add(mntmLoadBtFile);
-
-
-    /**
-     * Load configuration file for TCGen-UI
-     */
-    JMenuItem mntmSave = new JMenuItem("Load Test Case Config");
-    mntmSave.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        // TODO Save Data here
-      }
-    });
-    mnFile.add(mntmSave);
-
-    JCheckBoxMenuItem chckbxmntmSaveSetting = new JCheckBoxMenuItem("Save Test Case Config");
-    chckbxmntmSaveSetting.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent e) {
-        SaveConfig(false);
-      }
-    });
-    mnFile.add(chckbxmntmSaveSetting);
-
-    JMenuItem mntmExit = new JMenuItem("Exit");
-    mntmExit.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        if (isLoaded == false) {
-          System.exit(0);
-        } else {
-          int dialogButton = JOptionPane.YES_NO_OPTION;
-          int dialogResult =
-              JOptionPane.showConfirmDialog(null,
-                  "Would you like to save your configurations first?", "Warning", dialogButton);
-          if (dialogResult == JOptionPane.YES_OPTION) {
-            SaveConfig(true);
-          } else {
-            System.exit(0);
-          }
-        }
-      }
-    });
-    mnFile.add(mntmExit);
-
-    JMenu mnHelp = new JMenu("Help");
-    menuBar.add(mnHelp);
-
-    JMenuItem mntmTips = new JMenuItem("Tips");
-    mntmTips.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        JOptionPane
-            .showMessageDialog(
-                frame,
-                "Instructions on generating test cases: \n\n1) File > Load BT > Choose BT file \n2) Fill in 'Nodes of Interest', 'Target System State', and 'Range' (you must select Target System State before Range) \n3) Click on Generate Test Paths \n4) Fill in Observable Responses and User Actions \n5) Click Generate Test Cases \n6) Save Config by File > Save Test Case Config\n\nDo note that you do not need to fill in 'Observable Responses' and 'User Actions' to generate test paths, but that is required for generating test cases.",
-                "Tips", JOptionPane.INFORMATION_MESSAGE);
-      }
-    });
-    mnHelp.add(mntmTips);
-
-    JMenuItem mntmAbout = new JMenuItem("About");
-    mntmAbout.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        JOptionPane
-            .showMessageDialog(
-                frame,
-                "TP-Optimizer\r\nBy Mitchell Savell\r\nmitchellsavell@gmail.com\r\n\r\nBased on TCGen-UI\r\nBy Soh Wei Yu",
-                "About", JOptionPane.PLAIN_MESSAGE);
-
-      }
-    });
-    mnHelp.add(mntmAbout);
-    return menuBar;
-  }
-
 
   public static void printErrorMessage(String error) {
     System.out.println(error);
@@ -1177,21 +1099,25 @@ public class Main extends JFrame {
     // load nodes NOI table
     readNodes();
 
-    populateTSSTab();
+    populateCPTab();
     populateObsTab();
     populateUATab();
 
-    updateTSSTA();
+    updateCPTA();
     updateOTA();
     updateUATA();
 
-    btnGenerateTestPaths.setEnabled(true);
+    btnGenerateTestCases.setEnabled(true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab1Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab2Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab3Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab4Name), true);
   }
 
   private void readNodes() {
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
-        tagToNodeDataMap.put(Integer.parseInt(node.getTag()), node);
+        tagToNodeDataMap.put(node.getTag(), node);
         if (!compToBehaviourMap.containsKey(node.getComponent())) {
           compToBehaviourMap.put(node.getComponent(), new ArrayList<NodeData>());
         }
@@ -1203,39 +1129,38 @@ public class Main extends JFrame {
     }
   }
 
-  private void populateTSSTab() {
-    Map<String, ArrayList<String>> tssComponents = new HashMap<String, ArrayList<String>>();
+  private void populateCPTab() {
+    Map<String, ArrayList<String>> cpComponents = new HashMap<String, ArrayList<String>>();
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
         if (node.getBehaviourType().equals("STATE-REALISATION")) {
-          if (!tssComponents.containsKey(node.getComponent())) {
-            tssComponents.put(node.getComponent(), new ArrayList<String>());
+          if (!cpComponents.containsKey(node.getComponent())) {
+            cpComponents.put(node.getComponent(), new ArrayList<String>());
           }
-          tssComponents.get(node.getComponent()).add(node.getBehaviour());
-          chosenTSS.put(node.getComponent() + ";" + node.getBehaviour(), false);
+          cpComponents.get(node.getComponent()).add(node.getBehaviour());
+          chosenCPs.put(node.getComponent() + ";" + node.getBehaviour(), false);
         }
       }
     }
 
-    String[] cmbData = tssComponents.keySet().toArray(new String[0]);
-    cmbTSSComponent.setModel(new DefaultComboBoxModel<String>(clean(cmbData)));
-    updateTSSDisplay();
+    String[] cmbData = cpComponents.keySet().toArray(new String[0]);
+    cmbCPComponent.setModel(new DefaultComboBoxModel<String>(clean(cmbData)));
+    updateCPDisplay();
   }
 
-  private void updateTSSDisplay() {
+  private void updateCPDisplay() {
     Set<String> cmbBehaviourData = new HashSet<String>();
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
-        if (node.getComponent().equals(
-            cmbTSSComponent.getItemAt(cmbTSSComponent.getSelectedIndex()))
+        if (node.getComponent().equals(cmbCPComponent.getItemAt(cmbCPComponent.getSelectedIndex()))
             && node.getBehaviourType().equals("STATE-REALISATION")) {
           cmbBehaviourData.add(node.getBehaviour());
         }
       }
     }
-    cmbTSSBehaviour.setModel(new DefaultComboBoxModel<String>(clean(cmbBehaviourData
+    cmbCPBehaviour.setModel(new DefaultComboBoxModel<String>(clean(cmbBehaviourData
         .toArray(new String[0]))));
-    updateTSS();
+    updateCP();
   }
 
   private void populateObsTab() {

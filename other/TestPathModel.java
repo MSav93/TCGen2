@@ -12,6 +12,7 @@ public class TestPathModel extends AbstractTableModel {
     this.paths = paths;
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
     return TestPath.class;
   }
