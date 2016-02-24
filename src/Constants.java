@@ -17,5 +17,5 @@ public class Constants {
       Arrays.asList("EXTERNAL-INPUT", "EVENT", "EXTERNAL-OUTPUT", "SELECTION", "GUARD"));
 
   public static final ArrayList<String> acceptedUABehaviourTypes = new ArrayList<String>(
-      Arrays.asList("EXTERNAL-INPUT", "EVENT", "EXTERNAL-OUTPUT"));
+      Arrays.asList("EXTERNAL-INPUT", "EVENT"));
 }

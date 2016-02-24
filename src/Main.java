@@ -125,6 +125,7 @@ public class Main extends JFrame {
   /**
    * Variables that must be saved
    */
+  private String btXML;
   private String filenameStr;
   private String initialNode;
 
@@ -564,15 +565,16 @@ public class Main extends JFrame {
           System.out.println("You chose " + f.getPath());
           filenameStr = (f.getPath()).replace("\\", "/");
 
-          connectToServer();
-
-          loadBTFile(f.getName());
+          String result = connectToServer();
+          
+          if(!(result.equals("") || result.contains("error"))) {
+            loadBTFile(f.getName());
+          }
         } else if (retVal == JFileChooser.CANCEL_OPTION) {
           System.out.println("You cancelled the choice");
         } else if (retVal == JFileChooser.ERROR_OPTION) {
           printErrorMessage("error|6|");
         }
-
       }
 
       private void loadBTFile(String filename) {
@@ -587,10 +589,10 @@ public class Main extends JFrame {
         tagToIndexMap = new HashMap<>();
 
         System.out.println("Building BT");
-        String result = sbcl.sendCommand("(print-bt)");
-        if (!result.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
+        btXML = sbcl.sendCommand("(print-bt)");
+        if (!btXML.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
           clearEverything();
-          BTModelReader modelReader = new BTModelReader(result);
+          BTModelReader modelReader = new BTModelReader(btXML);
           indexToNodeMap = modelReader.getIndexToNodeMap();
           tagToIndexMap = modelReader.getTagToIndexMap();
         } else {
@@ -1241,18 +1243,19 @@ public class Main extends JFrame {
     return list.toArray(new String[list.size()]);
   }
 
-  private void connectToServer() {
+  private String connectToServer() {
     System.out.println("Connecting to server");
-    String connectionResult;
+    String connectionResult = "";
     try {
       connectionResult = sbcl.connect("localhost", 12);
       if (!connectionResult.equals("success")) {
         printErrorMessage(connectionResult);
-        return;
+        return connectionResult;
       }
     } catch (InterruptedException | IOException e) {
       // nop
     }
     System.out.println("Successfully connected");
+    return connectionResult;
   }
 }
