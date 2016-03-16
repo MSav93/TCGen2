@@ -60,7 +60,7 @@ public class BTModelReader {
     for (Element nodeInfo : nodes) {
       Element tag = nodeInfo.getChild("tag"); // a tag
       nodesArray.add(new NodeData(nodeInfo.getChildText("tag"), nodeInfo.getChildText("component"),
-          nodeInfo.getChildText("behaviour-type"), nodeInfo.getChildText("behaviour")));
+          nodeInfo.getChildText("behaviour-type"), nodeInfo.getChildText("behaviour"), nodeInfo.getChildText("flag")));
       tagToIndex.put(tag.getText(), blockIndex); // map tag to block index
     }
     return nodesArray;

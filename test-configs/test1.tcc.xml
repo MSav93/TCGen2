@@ -514,27 +514,30 @@
 	</block>
 	<config version="0.1" filepath="C:\Users\Mitch\OneDrive\Documents\workspace\TP-Optimizer\models\ATM140726.btc">
 		<NOI>
-			<element component="Console" behaviour="getAccount" behaviour-type="EXTERNAL-INPUT" />
-			<element component="Coms" behaviour="withdrawal" behaviour-type="EXTERNAL-INPUT" />
-			<element component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" />
-			<element component="Coms" behaviour="InsufficientFunds" behaviour-type="EXTERNAL-INPUT" />
-			<element component="Display" behaviour="noSuchAccount" behaviour-type="EXTERNAL-INPUT" />
+			<element tag="7" component="Console" behaviour="getAccount" behaviour-type="EXTERNAL-INPUT" />
+			<element tag="10" component="Coms" behaviour="withdrawal" behaviour-type="EXTERNAL-INPUT" />
+			<element tag="11" component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" />
+			<element tag="19" component="Coms" behaviour="insufficientFunds" behaviour-type="EXTERNAL-INPUT" />
+			<element tag="23" component="Display" behaviour="noSuchAccount" behaviour-type="EXTERNAL-OUTPUT" />
+      <element tag="99" component="Display" behaviour="noSuchAccount" behaviour-type="EXTERNAL-OUTPUT" />
 		</NOI>
 		<CP>
 			<element component="ATM" behaviour="Ready" />
-			<element component="ATM" behaviour="PerformTransaction" />
-			<element component="Display" behaviour="AnotherTransaction" />
-		</CP>
+			<element component="ATM2" behaviour="PerformTransaction" />
+			<element component="Display" behaviour="AnotherTransaction?" />
+      <initial tag="1" component="ATM" behaviour="NOTREADY" behaviour-type="STATE-REALISATION"/>
+		</CP>  
 		<OR>
 			<element component="Display" behaviour="AnotherTransaction?" behaviour-type="STATE-REALISATION" observation="testingtestingtesting" />
 			<element component="Display" behaviour="ShowAccTypes" behaviour-type="STATE-REALISATION" observation="testingtestingtesting2" />
 			<element component="ATM" behaviour="PerformTransaction" behaviour-type="STATE-REALISATION" observation="testingtestingtesting3" />
-			<element component="Display" behaviour="ShowWdAmounts" behaviour-type="STATE-REALISATION" observation="testingtestingtesting4" />
-			<element component="ATM" behaviour="Ready?" behaviour-type="STATE-REALISATION" observation="testingtestingtesting5" />
+			<element component="Disp" behaviour="ShowWdAmounts" behaviour-type="STATE-REALISATION" observation="testingtestingtesting4" />
+			<element component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION" observation="testingtestingtesting5" />
 		</OR>
 		<UA>
-			<element component="Reader" behaviour="acceptCard" behaviour-type="EXTERNAL-INPUT" observation="testingtestingtesting" preamble="true" />
-			<element component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" observation="testingtestingtesting2" preamble="false" />
+			<element component="Reader" behaviour="acceptCard" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting" preamble="true" />
+      <element component="Deader" behaviour="acceptCard" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting" preamble="true" />
+			<element component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting2" preamble="false" />
 		</UA>
 		<TP />
 	</config>

@@ -6,14 +6,20 @@ public class NodeData {
   private String component;
   private String behaviourType;
   private String behaviour;
+  private String flag;
 
 
   public NodeData(String tagParam, String componentParam, String behaviourTypeParam,
-      String behaviourParam) {
+      String behaviourParam, String flagParam) {
     tag = tagParam;
     component = componentParam;
     behaviourType = behaviourTypeParam;
     behaviour = behaviourParam;
+    if (flagParam == null) {
+      flag = "";
+    } else {
+      flag = flagParam;
+    }
   }
 
   public String getBehaviour() {
@@ -30,6 +36,10 @@ public class NodeData {
 
   public String getTag() {
     return tag;
+  }
+  
+  public String getFlag() {
+    return flag;
   }
 
   public String toString() {

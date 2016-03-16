@@ -4,5 +4,8 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="lib" path="lib/jxl.jar"/>
 	<classpathentry kind="lib" path="lib/jdom-2.0.6.jar"/>
+	<classpathentry kind="lib" path="BTAnalyser"/>
+	<classpathentry kind="lib" path="models"/>
+	<classpathentry kind="lib" path="test-configs"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

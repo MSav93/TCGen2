@@ -10,6 +10,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,7 +19,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,7 +48,12 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
+import org.jdom2.Attribute;
 import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
+
+import com.SBCLPipe;
 
 import other.AlphanumComparator;
 import other.TestPath;
@@ -57,8 +62,6 @@ import other.TestPathModel;
 import tree.BTNode;
 import tree.NodeData;
 import util.BTModelReader;
-
-import com.SBCLPipe;
 
 public class Main extends JFrame {
 
@@ -90,7 +93,7 @@ public class Main extends JFrame {
    */
   private JComboBox<String> cmbCPComponent = new JComboBox<String>();
   private JComboBox<String> cmbCPBehaviour = new JComboBox<String>();
-  private final JCheckBox chkCP = new JCheckBox("This is a Target System State");
+  private final JCheckBox chkCP = new JCheckBox("This is a CheckPoint");
   private JComboBox<String> cmbInitialState = new JComboBox<String>();
   private final TextArea taCP = new TextArea();
 
@@ -105,13 +108,12 @@ public class Main extends JFrame {
   /**
    * Components on fourth tab
    */
-  private JComboBox<String> cmbUAComp = new JComboBox<String>();
+  private JComboBox<String> cmbUAComponent = new JComboBox<String>();
   private JComboBox<String> cmbUABehaviour = new JComboBox<String>();
   private final TextArea taUAConfigured = new TextArea();
   private final JTextArea taUAInput = new JTextArea();
-  private final JCheckBox chckbxAppearPreAmble =
-      new JCheckBox(
-          "This condition should appear in the Pre-Amble/This is an External Input not under user's control");
+  private final JCheckBox chckbxAppearPreAmble = new JCheckBox(
+      "This condition should appear in the Pre-Amble/This is an External Input not under user's control");
 
   /**
    * Maps to store info about BT Model
@@ -126,30 +128,23 @@ public class Main extends JFrame {
    * Variables that must be saved
    */
   private String btXML;
-  private String filenameStr;
+  private String btFilePath;
   private String initialNode;
 
   /**
    * Other
    */
   private SBCLPipe sbcl = new SBCLPipe();
+  private Boolean isLoaded = false;
 
 
 
   private static final long serialVersionUID = 1L;
-  LinkedHashMap<String, ArrayList<ArrayList<Element>>> testPaths =
-      new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
-  HashMap<String, ArrayList<NodeData>> mapToTag2 = new HashMap<>(); // map block index to tag
-  public LinkedHashMap<String, String[]> listOfTestPaths = new LinkedHashMap<>();
 
-
-  private Boolean isLoaded = false;
-
-  private String[] potentialCP = new String[0];
-
-  HashMap<String, Boolean> chosenCPs = new HashMap<>();
+  ArrayList<String> chosenCPs = new ArrayList<String>();
   HashMap<String, String> observableResponses = new HashMap<>();
   HashMap<String, String[]> userActions = new HashMap<>();
+
 
   /**
    * Launch the application.
@@ -194,31 +189,28 @@ public class Main extends JFrame {
   /**
    * Clear all previous configurations from memory.
    */
-  public void clearEverything() {
+  private void clearEverything() {
+    // TODO something isn't being cleared that results in values in observables and user actions sticking around
     int count = tblNOI.getRowCount();
     for (int i = 0; i < count; i++) {
       ((DefaultTableModel) tblNOI.getModel()).removeRow(0);
     }
+
+    chosenCPs = new ArrayList<String>();
+    observableResponses = new HashMap<>();
+    userActions = new HashMap<>();
+    tagToIndexMap = new HashMap<>();
+    indexToNodeMap = new TreeMap<>();
+    tagToNodeDataMap = new TreeMap<String, NodeData>();
+    compToBehaviourMap = new HashMap<String, ArrayList<NodeData>>();
+
     cmbInitialState.removeAllItems();
     cmbCPComponent.removeAllItems();
     cmbCPBehaviour.removeAllItems();
     cmbORComponent.removeAllItems();
     cmbORBehaviour.removeAllItems();
-    cmbUAComp.removeAllItems();
+    cmbUAComponent.removeAllItems();
     cmbUABehaviour.removeAllItems();
-
-    testPaths = new LinkedHashMap<String, ArrayList<ArrayList<Element>>>();
-
-    listOfTestPaths = new LinkedHashMap<>();
-
-    chosenCPs = new HashMap<>();
-    observableResponses = new HashMap<>();
-    userActions = new HashMap<>();
-    mapToTag2 = new HashMap<>();
-    tagToIndexMap = new HashMap<>();
-    indexToNodeMap = new TreeMap<>();
-
-    potentialCP = new String[0];
 
     chkCP.setSelected(false);
 
@@ -231,44 +223,543 @@ public class Main extends JFrame {
     taORConfigured.setText("");
     taUAConfigured.setText("");
 
-    filenameStr = "";
+    btFilePath = "";
 
     updateCPTA();
     updateOTA();
     updateUATA();
   }
 
+  private void loadBTModel(File f) {
+    String result = connectToServer();
+    if (!(result.equals("") || result.contains("error"))) {
+      clearEverything();
+      System.out.println("loading model");
+
+      // load bt-file into BTAnalyser
+      System.out.println("Processing bt file");
+      sbcl.sendCommand("(process-bt-file \"" + (f.getPath()).replace("\\", "/") + "\")");
+
+      // important to ensure resulting TCPs are reachable/valid
+      System.out.println("Ensure TCPs are reachable");
+      sbcl.sendCommand("(reachable-states)");
+
+      System.out.println("Building BT");
+      btXML = sbcl.sendCommand("(print-bt)");
+      if (!btXML.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
+        readBTXML(btXML);
+      } else {
+        printErrorMessage("error|6|");
+        return;
+      }
+
+      populateData();
+      isLoaded = true;
+      frame.setTitle("TP-Optimizer - " + f.getName());
+    } else {
+      printErrorMessage("error|4|");
+    }
+  }
+
+  private void loadTCC(File f) {
+    String result = connectToServer();
+    if (!(result.equals("") || result.contains("error"))) {
+      clearEverything();
+      try {
+        btXML = new String(Files.readAllBytes(Paths.get(f.getPath())));
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      readBTXML(btXML);
+      populateData();
+      readConfig(btXML);
+    } else {
+      printErrorMessage("error|4|");
+    }
+  }
+
+  private void readBTXML(String btXML) {
+    BTModelReader modelReader = new BTModelReader(btXML);
+    indexToNodeMap = modelReader.getIndexToNodeMap();
+    tagToIndexMap = modelReader.getTagToIndexMap();
+  }
+
+  private void readConfig(String configXML) {
+    org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
+
+    // XML parser has problem reading ||&
+    configXML = configXML.replace("||&", "");
+
+    org.jdom2.Document doc = null;
+    try {
+      doc = saxBuilder.build(new StringReader(configXML));
+    } catch (JDOMException | IOException e) {
+      e.printStackTrace();
+    }
+
+    Element rootNode = doc.getRootElement();
+    Element config = rootNode.getChild("config");
+    if (!config.getAttributeValue("version").equals(Constants.version)) {
+      printErrorMessage("error|6|");
+    }
+    btFilePath = config.getAttributeValue("filepath");
+
+    // NOIS
+    List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
+    // recording nodes that get matched to remove later to avoid ConcurrentModificationException.
+    ArrayList<Element> nodesToBeRemoved = new ArrayList<Element>();
+    for (int i = 0; i < tblNOI.getModel().getRowCount(); i++) {
+      String tag = (String) tblNOI.getValueAt(i, 0);
+      String component = (String) tblNOI.getValueAt(i, 1);
+      String behaviour = (String) tblNOI.getValueAt(i, 2);
+      String behaviourType = (String) tblNOI.getValueAt(i, 3);
+      for (Element node : nodesOfInterest) {
+        if (checkElementsAttributes(node, "noi")) {
+          if (tag.equals(node.getAttributeValue("tag"))
+              && component.equals(node.getAttributeValue("component"))
+              && behaviour.equals(node.getAttributeValue("behaviour"))
+              && behaviourType.equals(node.getAttributeValue("behaviour-type"))) {
+            // Selects this node as a NOI
+            tblNOI.setValueAt(true, i, 4);
+            // Remove node from remaining list of unmatched nodes
+            nodesToBeRemoved.add(node);
+          }
+        }
+      }
+    }
+    for (Element node : nodesToBeRemoved) {
+      nodesOfInterest.remove(node);
+    }
+
+    // CPs
+    List<Element> checkpoints = config.getChild("CP").getChildren("element");
+    ArrayList<Element> checkpointsToBeRemoved = new ArrayList<Element>();
+    for (Element cp : checkpoints) {
+      if (checkElementsAttributes(cp, "cp")) {
+        String component = cp.getAttributeValue("component");
+        String behaviour = cp.getAttributeValue("behaviour");
+        if (compToBehaviourMap.containsKey(component)) {
+          ArrayList<NodeData> nodes = compToBehaviourMap.get(component);
+          for (NodeData node : nodes) {
+            if (node.getBehaviour().equals(behaviour)) {
+              chosenCPs.add(component + ";" + behaviour);
+              checkpointsToBeRemoved.add(cp);
+              break;
+            }
+          }
+        }
+      }
+    }
+    for (Element cp : checkpointsToBeRemoved) {
+      checkpoints.remove(cp);
+    }
+
+    // Initial CP
+    Element initialCp = config.getChild("CP").getChild("initial");
+    if (checkElementsAttributes(initialCp, "initial")) {
+      String cpComponent = initialCp.getAttributeValue("component");
+      String cpBehaviour = initialCp.getAttributeValue("behaviour");
+      boolean found = false;
+      if (compToBehaviourMap.containsKey(cpComponent)) {
+        ArrayList<NodeData> nodes = compToBehaviourMap.get(cpComponent);
+        for (NodeData node : nodes) {
+          if (node.getBehaviour().equals(cpBehaviour)) {
+            found = true;
+            break;
+          }
+        }
+      }
+      if (found) {
+        initialNode = "Node " + initialCp.getAttributeValue("tag") + ": "
+            + initialCp.getAttributeValue("component") + " - "
+            + initialCp.getAttributeValue("behaviour") + " ["
+            + initialCp.getAttributeValue("behaviour-type") + "]";
+        initialCp = null;
+      }
+    }
+
+    // Observable Responses
+    List<Element> observables = config.getChild("OR").getChildren("element");
+    ArrayList<Element> observablesToBeRemoved = new ArrayList<Element>();
+    for (Element or : observables) {
+      if (checkElementsAttributes(or, "or")) {
+        String orComponent = or.getAttributeValue("component");
+        String orBehaviour = or.getAttributeValue("behaviour");
+        String orBehaviourType = or.getAttributeValue("behaviour-type");
+        if (compToBehaviourMap.containsKey(orComponent)) {
+          ArrayList<NodeData> nodes = compToBehaviourMap.get(orComponent);
+          for (NodeData node : nodes) {
+            if (node.getBehaviour().equals(orBehaviour)
+                && node.getBehaviourType().equals(orBehaviourType)) {
+              observableResponses.put(
+                  orComponent + ";" + orBehaviour + " [" + orBehaviourType + "]",
+                  or.getAttributeValue("observation"));
+              observablesToBeRemoved.add(or);
+              break;
+
+            }
+          }
+        }
+      }
+    }
+    for (Element or : observablesToBeRemoved) {
+      observables.remove(or);
+    }
+
+    // User Actions
+    List<Element> actions = config.getChild("UA").getChildren("element");
+    ArrayList<Element> actionsToBeRemoved = new ArrayList<Element>();
+    for (Element ua : actions) {
+      if (checkElementsAttributes(ua, "ua")) {
+        String uaComponent = ua.getAttributeValue("component");
+        String uaBehaviour = ua.getAttributeValue("behaviour");
+        String uaBehaviourType = ua.getAttributeValue("behaviour-type");
+        if (compToBehaviourMap.containsKey(uaComponent)) {
+          ArrayList<NodeData> nodes = compToBehaviourMap.get(uaComponent);
+          for (NodeData node : nodes) {
+            if (node.getBehaviour().equals(uaBehaviour)
+                && node.getBehaviourType().equals(uaBehaviourType)) {
+              userActions.put(uaComponent + ";" + uaBehaviour + " [" + uaBehaviourType + "]",
+                  new String[] {ua.getAttributeValue("action"), ua.getAttributeValue("preamble")});
+              actionsToBeRemoved.add(ua);
+              break;
+            }
+          }
+        }
+      }
+    }
+    for (Element ua : actionsToBeRemoved) {
+      actions.remove(ua);
+    }
+    updateDisplay();
+    reportConfigDifferences(nodesOfInterest, checkpoints, initialCp, observables, actions);
+  }
+
+  private boolean checkElementsAttributes(Element element, String elementType) {
+    boolean valid = true;
+    switch (elementType) {
+      case "noi":
+        valid = element.hasAttributes();
+        if (valid) {
+          valid = (element.getAttributeValue("tag") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("component") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour-type") != null);
+        }
+        return valid;
+      case "cp":
+        if (valid) {
+          valid = (element.getAttributeValue("component") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour") != null);
+        }
+        return valid;
+      case "initial":
+        if (valid) {
+          valid = (element.getAttributeValue("component") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour-type") != null);
+        }
+        return valid;
+      case "or":
+        if (valid) {
+          valid = (element.getAttributeValue("component") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour-type") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("observation") != null);
+        }
+        return valid;
+      case "ua":
+        if (valid) {
+          valid = (element.getAttributeValue("component") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour-type") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("action") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("preamble") != null);
+        }
+        return valid;
+      default:
+        return false;
+    }
+  }
+
+  private void updateDisplay() {
+    updateCPTab();
+    updateORTab();
+    updateUATab();
+  }
+
+  private void reportConfigDifferences(List<Element> nodesOfInterest, List<Element> checkpoints,
+      Element initialCp, List<Element> observables, List<Element> actions) {
+    if (nodesOfInterest.size() > 0 || checkpoints.size() > 0 || initialCp != null
+        || observables.size() > 0 || actions.size() > 0) {
+      StringBuilder sb = new StringBuilder();
+      sb.append(
+          "The following elements found within the Test Case Configuration could not be matched to the BT Model.");
+      sb.append(System.getProperty("line.separator"));
+      sb.append("Please check the spelling of element attribute values.");
+      sb.append(System.getProperty("line.separator"));
+      sb.append(System.getProperty("line.separator"));
+
+      if (nodesOfInterest.size() > 0) {
+        sb.append("NOIs:");
+        for (Element noi : nodesOfInterest) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> noiAttributes = noi.getAttributes();
+          for (int i = 0; i < noiAttributes.size(); i++) {
+            sb.append(noiAttributes.get(i).getName() + "[" + noiAttributes.get(i).getValue() + "]");
+            if (!(i == noiAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (checkpoints.size() > 0) {
+        sb.append("CheckPoints:");
+        for (Element cp : checkpoints) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> cpAttributes = cp.getAttributes();
+          for (int i = 0; i < cpAttributes.size(); i++) {
+            sb.append(cpAttributes.get(i).getName() + "[" + cpAttributes.get(i).getValue() + "]");
+            if (!(i == cpAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (initialCp != null) {
+        sb.append("Initial CP");
+        sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+        List<Attribute> initialCpAttributes = initialCp.getAttributes();
+        for (int i = 0; i < initialCpAttributes.size(); i++) {
+          sb.append(initialCpAttributes.get(i).getName() + "["
+              + initialCpAttributes.get(i).getValue() + "]");
+          if (!(i == initialCpAttributes.size() - 1)) {
+            sb.append(", ");
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (observables.size() > 0) {
+        sb.append("Observations:");
+        for (Element or : observables) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> orAttributes = or.getAttributes();
+          for (int i = 0; i < orAttributes.size(); i++) {
+            sb.append(orAttributes.get(i).getName() + "[" + orAttributes.get(i).getValue() + "]");
+            if (!(i == orAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (actions.size() > 0) {
+        sb.append("User Actions:");
+        for (Element ua : actions) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> uaAttributes = ua.getAttributes();
+          for (int i = 0; i < uaAttributes.size(); i++) {
+            sb.append(uaAttributes.get(i).getName() + "[" + uaAttributes.get(i).getValue() + "]");
+            if (!(i == uaAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+      }
+      JOptionPane.showMessageDialog(null, sb.toString());
+    }
+  }
+
+  private void updateCPTab() {
+    updateCPCmbBoxes();
+    updateCPTA();
+    updateCPInitial();
+    updateCPCheckBox();
+  }
+
+  private void updateCPCmbBoxes() {
+    Map<String, ArrayList<String>> cpComponents = new HashMap<String, ArrayList<String>>();
+    for (int key : indexToNodeMap.keySet()) {
+      for (NodeData node : indexToNodeMap.get(key).getData()) {
+        if (node.getBehaviourType().equals("STATE-REALISATION")) {
+          if (!cpComponents.containsKey(node.getComponent())) {
+            cpComponents.put(node.getComponent(), new ArrayList<String>());
+          }
+          cpComponents.get(node.getComponent()).add(node.getBehaviour());
+        }
+      }
+    }
+
+    String[] cmbData = cpComponents.keySet().toArray(new String[0]);
+    cmbCPComponent.setModel(new DefaultComboBoxModel<String>(clean(cmbData)));
+    updateCPBehaviours();
+    updateCPCheckBox();
+  }
+
+  private void updateCPBehaviours() {
+    Set<String> cmbBehaviourData = new HashSet<String>();
+    for (int key : indexToNodeMap.keySet()) {
+      for (NodeData node : indexToNodeMap.get(key).getData()) {
+        if (node.getComponent().equals(cmbCPComponent.getItemAt(cmbCPComponent.getSelectedIndex()))
+            && node.getBehaviourType().equals("STATE-REALISATION")) {
+          cmbBehaviourData.add(node.getBehaviour());
+        }
+      }
+    }
+    cmbCPBehaviour
+        .setModel(new DefaultComboBoxModel<String>(clean(cmbBehaviourData.toArray(new String[0]))));
+    updateCPCheckBox();
+  }
+
+  /**
+   * Populate Initial CP combo box.
+   */
+  private void updateCPInitial() {
+    String[] potentialCP = new String[indexToNodeMap.size()];
+    int i = 0;
+    for (int key : indexToNodeMap.keySet()) {
+      for (NodeData node : indexToNodeMap.get(key).getData()) {
+        for (String selectedCP : chosenCPs) {
+          String[] cpParts = selectedCP.split(";");
+          if (node.getComponent().equals(cpParts[0]) && node.getBehaviour().equals(cpParts[1])) {
+            if (node.getBehaviourType().equals("STATE-REALISATION")) {
+              potentialCP[i] = "Node " + node.getTag() + ": " + node.getComponent() + " - "
+                  + node.getBehaviour() + " [" + node.getBehaviourType() + "]";
+              i++;
+            }
+          }
+        }
+      }
+    }
+    // TODO allow cmbInitialState to have "" as an option?
+    potentialCP = clean(potentialCP);
+    Arrays.sort(potentialCP, new AlphanumComparator());
+    cmbInitialState.setModel(new DefaultComboBoxModel<String>(potentialCP));
+    if (cmbInitialState.getSelectedItem() != null) {
+      initialNode = cmbInitialState.getSelectedItem().toString();
+    } else {
+      initialNode = null;
+    }
+  }
+
   /**
    * Write label that shows configured CP nodes.
    */
-  public void updateCPTA() {
+  private void updateCPTA() {
     taCP.setText("");
-    for (Entry<String, Boolean> node : chosenCPs.entrySet()) {
-      String key = node.getKey();
-      Boolean value = node.getValue();
-
-      if (value == true) {
-        if (taCP.getText().equals("")) {
-          taCP.setText(taCP.getText() + key);
-        } else {
-          taCP.setText(taCP.getText() + ", \n" + key);
-        }
+    for (String node : chosenCPs) {
+      if (taCP.getText().equals("")) {
+        taCP.setText(taCP.getText() + node);
+      } else {
+        taCP.setText(taCP.getText() + ", \n" + node);
       }
     }
     taCP.setText(taCP.getText().replaceAll(";", ": "));
   }
 
+  /**
+   * Populate configuration for CP.
+   */
+  private void updateCPCheckBox() {
+    String selectedCP = cmbCPComponent.getSelectedItem().toString() + ";"
+        + cmbCPBehaviour.getSelectedItem().toString();
+    if (chosenCPs.contains(selectedCP)) {
+      chkCP.setSelected(true);
+    } else {
+      chkCP.setSelected(false);
+    }
+  }
+
+  private void updateORTab() {
+    updateORCmbBoxes();
+    updateOTA();
+    updateOR();
+  }
+
+  private void updateORCmbBoxes() {
+
+    String[] obsComps = new String[compToBehaviourMap.size()];
+    int i = 0;
+    for (String key : compToBehaviourMap.keySet()) {
+      boolean accepted = false;
+      for (NodeData node : compToBehaviourMap.get(key)) {
+        if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())
+            && !Constants.unnaceptedObsFlags.contains(node.getFlag())) {
+          accepted = true;
+          break;
+        }
+      }
+      if (accepted) {
+        obsComps[i++] = key;
+      }
+    }
+
+    cmbORComponent.setModel(new DefaultComboBoxModel<String>(clean(obsComps)));
+    updateObsBehaviours();
+  }
+
+  private void updateObsBehaviours() {
+    String[] obsBehaviours =
+        new String[compToBehaviourMap.get(cmbORComponent.getSelectedItem()).size()];
+    int i = 0;
+    if (cmbORComponent.getModel().getSize() > 0) {
+      System.out.println(cmbORComponent.getSelectedItem());
+      for (NodeData node : compToBehaviourMap.get(cmbORComponent.getSelectedItem())) {
+        if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())
+            && !Constants.unnaceptedObsFlags.contains(node.getFlag())) {
+          obsBehaviours[i++] = node.getBehaviour() + " [" + node.getBehaviourType() + "]";
+        }
+      }
+    }
+    cmbORBehaviour.setModel(new DefaultComboBoxModel<String>(clean(obsBehaviours)));
+  }
 
   /**
    * Load the observable response for selected component.
    */
-  public void updateOTA() {
+  private void updateOTA() {
     taORConfigured.setText("");
     for (Entry<String, String> component : observableResponses.entrySet()) {
       String key = component.getKey();
       String value = component.getValue();
 
-      if (!value.equals("")) {
+      if (value != null && !value.equals("")) {
         if (taORConfigured.getText().equals("")) {
           taORConfigured.setText(taORConfigured.getText() + key);
         } else {
@@ -279,11 +770,67 @@ public class Main extends JFrame {
     taORConfigured.setText(taORConfigured.getText().replaceAll(";", ": "));
   }
 
+  /**
+   * Populate configuration for Observable Responses.
+   */
+  private void updateOR() {
+    try {
+      String selectedOR = cmbORComponent.getSelectedItem().toString() + ";"
+          + cmbORBehaviour.getSelectedItem().toString();
+      if (observableResponses.get(selectedOR) != null) {
+        taORInput.setText(observableResponses.get(selectedOR));
+      } else {
+        taORInput.setText("");
+      }
+    } catch (Exception e) {
+
+    }
+  }
+
+  private void updateUATab() {
+    updateUACmbBoxes();
+    updateUATA();
+    updateUA();
+  }
+
+  private void updateUACmbBoxes() {
+    String[] uaComp = new String[compToBehaviourMap.size()];
+    int i = 0;
+    for (String key : compToBehaviourMap.keySet()) {
+      boolean accepted = false;
+      for (NodeData node : compToBehaviourMap.get(key)) {
+        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
+          accepted = true;
+          break;
+        }
+      }
+      if (accepted) {
+        uaComp[i++] = key;
+      }
+    }
+
+    cmbUAComponent.setModel(new DefaultComboBoxModel<String>(clean(uaComp)));
+    updateUABehaviours();
+  }
+
+  private void updateUABehaviours() {
+    String[] uaBehaviours =
+        new String[compToBehaviourMap.get(cmbUAComponent.getSelectedItem()).size()];
+    int i = 0;
+    if (cmbUAComponent.getModel().getSize() > 0) {
+      for (NodeData node : compToBehaviourMap.get(cmbUAComponent.getSelectedItem())) {
+        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
+          uaBehaviours[i++] = node.getBehaviour() + " [" + node.getBehaviourType() + "]";
+        }
+      }
+    }
+    cmbUABehaviour.setModel(new DefaultComboBoxModel<String>(clean(uaBehaviours)));
+  }
 
   /**
    * Load the user action for selected component.
    */
-  public void updateUATA() {
+  private void updateUATA() {
     taUAConfigured.setText("");
     for (Entry<String, String[]> component : userActions.entrySet()) {
       String key = component.getKey();
@@ -300,79 +847,31 @@ public class Main extends JFrame {
     taUAConfigured.setText(taUAConfigured.getText().replaceAll(";", ": "));
   }
 
-
   /**
-   * Populate configuration in Range.
+   * Populate configuration for User Actions.
    */
-  public void updateRangeTab() {
-    potentialCP = new String[indexToNodeMap.size()];
-    int i = 0;
-    for (int key : indexToNodeMap.keySet()) {
-      for (NodeData node : indexToNodeMap.get(key).getData()) {
-        for (Entry<String, Boolean> selectedCP : chosenCPs.entrySet()) {
-          String cp = selectedCP.getKey();
-          Boolean selected = selectedCP.getValue();
-          if (selected) {
-            String[] cpParts = cp.split(";");
-            if (node.getComponent().equals(cpParts[0]) && node.getBehaviour().equals(cpParts[1])) {
 
-              if (node.getBehaviourType().equals("STATE-REALISATION")) {
-                potentialCP[i] =
-                    "Node " + node.getTag() + ": " + node.getComponent() + " - "
-                        + node.getBehaviour() + " [" + node.getBehaviourType() + "]";
-                i++;
+  private void updateUA() {
+    try {
+      String selectedUA = cmbUAComponent.getSelectedItem().toString() + ";"
+          + cmbUABehaviour.getSelectedItem().toString();
+      if (userActions.get(selectedUA) != null) {
+        String[] userAction = userActions.get(selectedUA);
+        taUAInput.setText(userAction[0]);
 
-              }
-              // TODO
-              // the reversion flag, marked by ‘ ^ ’, leads to a looping behaviour back to the
-              // closest
-              // matching ancestor node and all behaviour started after the matching ancestor node
-              // is
-              // terminated.
-              // The reversion flag can only be set for leaf nodes. Another example is the thread
-              // kill
-              // flag, marked by ‘=
-              // ’, enforces the control flow to wait until all other synchronisation points
-              // (matching
-              // nodes that also have
-              // the synchronisation flag set) are reached.
-            }
-          }
+        if (userAction[1].equals("true")) {
+          chckbxAppearPreAmble.setSelected(true);
+        } else {
+          chckbxAppearPreAmble.setSelected(false);
         }
+      } else {
+        taUAInput.setText("");
+        chckbxAppearPreAmble.setSelected(false);
       }
+    } catch (Exception e) {
+
     }
-    potentialCP = clean(potentialCP);
-    Arrays.sort(potentialCP, new AlphanumComparator());
-    cmbInitialState.setModel(new DefaultComboBoxModel<String>(potentialCP));
-    setRange();
   }
-
-  /**
-   * Populate configuration in Range by component types.
-   */
-  public void updateRangeTabComponent() {
-    Set<String> set = new HashSet<String>();
-    for (int key : indexToNodeMap.keySet()) {
-      for (NodeData node : indexToNodeMap.get(key).getData()) {
-        for (Entry<String, Boolean> selectedCP : chosenCPs.entrySet()) {
-          String cp = selectedCP.getKey();
-          Boolean selected = selectedCP.getValue();
-          if (selected) {
-            String[] cpParts = cp.split(";");
-            if (node.getComponent().equals(cpParts[0]) && node.getBehaviour().equals(cpParts[1])) {
-              if (node.getBehaviourType().equals("STATE-REALISATION")) {
-                set.add(node.getComponent() + " - " + node.getBehaviour());
-              }
-            }
-          }
-        }
-      }
-    }
-    potentialCP = set.toArray(new String[0]);
-    Arrays.sort(potentialCP, new AlphanumComparator());
-
-  }
-
 
   /**
    * Open folder containing test cases.
@@ -395,9 +894,8 @@ public class Main extends JFrame {
         printErrorMessage("error|7");
       } else {
         try {
-          Desktop.getDesktop().open(
-              new File(System.getProperty("user.dir") + System.getProperty("file.separator")
-                  + "test-cases"));
+          Desktop.getDesktop().open(new File(System.getProperty("user.dir")
+              + System.getProperty("file.separator") + "test-cases"));
         } catch (IOException e1) {
           printErrorMessage("error|8");
           e1.printStackTrace();
@@ -405,81 +903,6 @@ public class Main extends JFrame {
       }
     }
   }
-
-  /**
-   * Record the selected option for range.
-   */
-  public void setRange() {
-    initialNode = cmbInitialState.getSelectedItem().toString();
-  }
-
-  /**
-   * Populate configuration for CP.
-   */
-  public void updateCP() {
-    String selectedCP =
-        cmbCPComponent.getSelectedItem().toString() + ";"
-            + cmbCPBehaviour.getSelectedItem().toString();
-
-    if (chosenCPs.get(selectedCP) != null) {
-      if (chosenCPs.get(selectedCP) == true) {
-        chkCP.setSelected(true);
-      } else {
-        chkCP.setSelected(false);
-      }
-    } else {
-      chkCP.setSelected(false);
-    }
-  }
-
-
-  /**
-   * Populate configuration for Observable Responses.
-   */
-
-  public void populateOR() {
-    try {
-      String selectedOR =
-          cmbORComponent.getSelectedItem().toString() + ";"
-              + cmbORBehaviour.getSelectedItem().toString();
-      if (observableResponses.get(selectedOR) != null) {
-        taORInput.setText(observableResponses.get(selectedOR));
-      } else {
-        taORInput.setText("");
-      }
-    } catch (Exception e) {
-
-    }
-  }
-
-
-  /**
-   * Populate configuration for User Actions.
-   */
-
-  public void populateUA() {
-    try {
-      String selectedUA =
-          cmbUAComp.getSelectedItem().toString() + ";"
-              + cmbUABehaviour.getSelectedItem().toString();
-      if (userActions.get(selectedUA) != null) {
-        String[] userAction = userActions.get(selectedUA);
-        taUAInput.setText(userAction[0]);
-
-        if (userAction[1].equals("true")) {
-          chckbxAppearPreAmble.setSelected(true);
-        } else {
-          chckbxAppearPreAmble.setSelected(false);
-        }
-      } else {
-        taUAInput.setText("");
-        chckbxAppearPreAmble.setSelected(false);
-      }
-    } catch (Exception e) {
-
-    }
-  }
-
 
   /**
    * Populate test case configuration in TCC file format.
@@ -506,7 +929,8 @@ public class Main extends JFrame {
 
   public Main() {
     setResizable(false);
-    setIconImage(Toolkit.getDefaultToolkit().getImage("C:\\Users\\Soh Wei Yu\\Documents\\icon.png"));
+    setIconImage(
+        Toolkit.getDefaultToolkit().getImage("C:\\Users\\Soh Wei Yu\\Documents\\icon.png"));
     setTitle("TP-Optimizer");
     setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     setBounds(222, -51, 1158, 850);
@@ -548,27 +972,30 @@ public class Main extends JFrame {
     /**
      * Load BT File.
      */
-    JMenuItem mntmLoadBTModel = new JMenuItem("Load BT File");
-    mntmLoadBTModel.addActionListener(new ActionListener() {
+    JMenuItem mntmLoad = new JMenuItem("Load BTModel or Test Case Config");
+    mntmLoad.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        JFileChooser chooser =
-            new JFileChooser(System.getProperty("user.dir") + System.getProperty("file.separator")
-                + "models");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("BT Model", "bt", "btc");
+        JFileChooser chooser = new JFileChooser(
+            System.getProperty("user.dir") + System.getProperty("file.separator") + "models");
+        FileNameExtensionFilter filter =
+            new FileNameExtensionFilter("BT Model", "bt", "btc", "xml");
         chooser.setFileFilter(filter);
         chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-        chooser.setMultiSelectionEnabled(true);
+        chooser.setMultiSelectionEnabled(false);
         int retVal = chooser.showOpenDialog(frame);
 
         if (retVal == JFileChooser.APPROVE_OPTION) {
           File f = chooser.getSelectedFile();
           System.out.println("You chose " + f.getPath());
-          filenameStr = (f.getPath()).replace("\\", "/");
-
-          String result = connectToServer();
-          
-          if(!(result.equals("") || result.contains("error"))) {
-            loadBTFile(f.getName());
+          btFilePath = (f.getPath()).replace("\\", "/");
+          if (btFilePath.endsWith("tcc.xml")) {
+            System.out.println("loading config");
+            loadTCC(f);
+          } else if (btFilePath.endsWith("btc")) {
+            System.out.println("loading model");
+            loadBTModel(f);
+          } else {
+            printErrorMessage("error|9|");
           }
         } else if (retVal == JFileChooser.CANCEL_OPTION) {
           System.out.println("You cancelled the choice");
@@ -576,57 +1003,17 @@ public class Main extends JFrame {
           printErrorMessage("error|6|");
         }
       }
-
-      private void loadBTFile(String filename) {
-        // load bt-file into BTAnalyser
-        System.out.println("Processing bt file");
-        sbcl.sendCommand("(process-bt-file \"" + filenameStr + "\")");
-
-        // important to ensure resulting TCPs are reachable/valid
-        System.out.println("Ensure TCPs are reachable");
-        sbcl.sendCommand("(reachable-states)");
-
-        tagToIndexMap = new HashMap<>();
-
-        System.out.println("Building BT");
-        btXML = sbcl.sendCommand("(print-bt)");
-        if (!btXML.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
-          clearEverything();
-          BTModelReader modelReader = new BTModelReader(btXML);
-          indexToNodeMap = modelReader.getIndexToNodeMap();
-          tagToIndexMap = modelReader.getTagToIndexMap();
-        } else {
-          printErrorMessage("error|6|");
-          return;
-        }
-
-        populateData();
-        isLoaded = true;
-        frame.setTitle("TP-Optimizer - " + filename);
-      }
     });
-    mnFile.add(mntmLoadBTModel);
+    mnFile.add(mntmLoad);
 
 
-    /**
-     * Load configuration file for TCGen-UI
-     */
-    JMenuItem mntmLoadConfig = new JMenuItem("Load Test Case Config");
-    mntmLoadConfig.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        // TODO Load Config here
-      }
-    });
-    mnFile.add(mntmLoadConfig);
-
-    JMenuItem mntmSaveConfig = new JMenuItem("Save Test Case Config");
-    mntmSaveConfig.addActionListener(new ActionListener() {
+    JMenuItem mntmSave = new JMenuItem("Save Test Case Config");
+    mntmSave.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         SaveConfig();
       }
     });
-    mnFile.add(mntmSaveConfig);
+    mnFile.add(mntmSave);
 
     JMenuItem mntmExit = new JMenuItem("Exit");
     mntmExit.addActionListener(new ActionListener() {
@@ -635,9 +1022,8 @@ public class Main extends JFrame {
           System.exit(0);
         } else {
           int dialogButton = JOptionPane.YES_NO_OPTION;
-          int dialogResult =
-              JOptionPane.showConfirmDialog(null,
-                  "Would you like to save your configurations first?", "Warning", dialogButton);
+          int dialogResult = JOptionPane.showConfirmDialog(null,
+              "Would you like to save your configurations first?", "Warning", dialogButton);
           if (dialogResult == JOptionPane.YES_OPTION) {
             SaveConfig();
             System.exit(0);
@@ -654,11 +1040,9 @@ public class Main extends JFrame {
     JMenuItem mntmTips = new JMenuItem("Tips");
     mntmTips.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        JOptionPane
-            .showMessageDialog(
-                frame,
-                "Instructions on generating test cases: \n\n1) File > Load BT > Choose BT file \n2) Fill in 'Nodes of Interest', 'Target System State', and 'Range' (you must select Target System State before Range) \n3) Click on Generate Test Paths \n4) Fill in Observable Responses and User Actions \n5) Click Generate Test Cases \n6) Save Config by File > Save Test Case Config\n\nDo note that you do not need to fill in 'Observable Responses' and 'User Actions' to generate test paths, but that is required for generating test cases.",
-                "Tips", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(frame,
+            "Instructions on generating test cases: \n\n1) File > Load BT > Choose BT file \n2) Fill in 'Nodes of Interest', 'CheckPoints' \n3) Click on Generate Test Paths \n4) Fill in Observable Responses and User Actions \n5) Click Generate Test Cases \n6) Save Config by File > Save Test Case Config\n\nDo note that you do not need to fill in 'Observable Responses' and 'User Actions' to generate test paths, but that is required for generating test cases.",
+            "Tips", JOptionPane.INFORMATION_MESSAGE);
       }
     });
     mnHelp.add(mntmTips);
@@ -666,11 +1050,9 @@ public class Main extends JFrame {
     JMenuItem mntmAbout = new JMenuItem("About");
     mntmAbout.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        JOptionPane
-            .showMessageDialog(
-                frame,
-                "TP-Optimizer\r\nBy Mitchell Savell\r\nmitchellsavell@gmail.com\r\n\r\nBased on TCGen-UI\r\nBy Soh Wei Yu",
-                "About", JOptionPane.PLAIN_MESSAGE);
+        JOptionPane.showMessageDialog(frame,
+            "TP-Optimizer\r\nBy Mitchell Savell\r\nmitchellsavell@gmail.com\r\n\r\nBased on TCGen-UI\r\nBy Soh Wei Yu",
+            "About", JOptionPane.PLAIN_MESSAGE);
 
       }
     });
@@ -739,12 +1121,12 @@ public class Main extends JFrame {
     tblNOI.setFillsViewportHeight(true);
     tblNOI.setCellSelectionEnabled(false);
     tblNOI.setRowSelectionAllowed(false);
-    tblNOI.setModel(new DefaultTableModel(new Object[][] {}, new String[] {"Tag", "Component",
-        "Behaviour", "Behaviour Type", "Select"}) {
+    tblNOI.setModel(new DefaultTableModel(new Object[][] {},
+        new String[] {"Tag", "Component", "Behaviour", "Behaviour Type", "Select"}) {
       private static final long serialVersionUID = -8673519275754805408L;
       @SuppressWarnings("rawtypes")
-      Class[] columnTypes = new Class[] {Object.class, Object.class, Object.class, Object.class,
-          Boolean.class};
+      Class[] columnTypes =
+          new Class[] {String.class, String.class, String.class, String.class, Boolean.class};
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       public Class getColumnClass(int columnIndex) {
@@ -781,18 +1163,14 @@ public class Main extends JFrame {
 
       public void actionPerformed(ActionEvent arg0) {
         if (cmbCPComponent.getSelectedItem() != null && cmbCPBehaviour.getSelectedItem() != null) {
-          String selectedCP =
-              cmbCPComponent.getSelectedItem().toString() + ";"
-                  + cmbCPBehaviour.getSelectedItem().toString();
-
+          String selectedCP = cmbCPComponent.getSelectedItem().toString() + ";"
+              + cmbCPBehaviour.getSelectedItem().toString();
           if (chkCP.isSelected()) {
-            chosenCPs.put(selectedCP, true);
-
+            chosenCPs.add(selectedCP);
           } else {
-            chosenCPs.put(selectedCP, false);
+            chosenCPs.remove(selectedCP);
           }
-
-          updateRangeTab();
+          updateCPInitial();
         }
         updateCPTA();
       }
@@ -802,16 +1180,17 @@ public class Main extends JFrame {
 
     cmbCPComponent.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent action) {
-        System.out.println(action.getActionCommand());
-        if (action.getActionCommand().equals("comboBoxChanged")) {
-          updateCPDisplay();
+        if (cmbCPComponent.getSelectedItem() != null) {
+          updateCPBehaviours();
         }
       }
     });
 
     cmbCPBehaviour.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        updateCP();
+        if (cmbCPComponent.getSelectedItem() != null) {
+          updateCPCheckBox();
+        }
       }
     });
 
@@ -832,7 +1211,7 @@ public class Main extends JFrame {
     panelCP.add(cmbInitialState);
 
     JLabel lblCPNote2 =
-        new JLabel("Note: Selection restricted to Target System States which you have chosen.");
+        new JLabel("Note: Selection restricted to CheckPoints which you have chosen.");
     lblCPNote2.setBounds(162, 395, 361, 14);
     panelCP.add(lblCPNote2);
 
@@ -841,7 +1220,9 @@ public class Main extends JFrame {
     panelCP.add(lblInitialState);
     cmbInitialState.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        initialNode = cmbInitialState.getSelectedItem().toString();
+        if (cmbInitialState.getSelectedItem() != null) {
+          initialNode = cmbInitialState.getSelectedItem().toString();
+        }
       }
     });
     return panelCP;
@@ -883,15 +1264,19 @@ public class Main extends JFrame {
 
     cmbORComponent.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        updateObsBehaviours();
-        populateOR();
+        if (cmbORComponent.getSelectedItem() != null) {
+          updateObsBehaviours();
+          updateOR();
+        }
       }
     });
 
 
     cmbORBehaviour.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        populateOR();
+        if (cmbORComponent.getSelectedItem() != null) {
+          updateOR();
+        }
       }
     });
 
@@ -901,9 +1286,8 @@ public class Main extends JFrame {
     lblORInput.setBounds(10, 205, 174, 22);
     panelOA.add(lblORInput);
 
-    JLabel lblNoteSelectionRestricted_1 =
-        new JLabel(
-            "Note: Selection restricted to all components except events, external inputs, selections & guards.");
+    JLabel lblNoteSelectionRestricted_1 = new JLabel(
+        "Note: Selection restricted to all components except events, external inputs, selections & guards.");
     lblNoteSelectionRestricted_1.setBounds(331, 127, 464, 14);
     panelOA.add(lblNoteSelectionRestricted_1);
 
@@ -933,11 +1317,11 @@ public class Main extends JFrame {
     lblUABehaviour.setBounds(340, 75, 84, 14);
     panelUA.add(lblUABehaviour);
 
-    cmbUAComp.setBounds(434, 22, 313, 32);
+    cmbUAComponent.setBounds(434, 22, 313, 32);
     panelUA.add(cmbUABehaviour);
 
     cmbUABehaviour.setBounds(434, 66, 313, 32);
-    panelUA.add(cmbUAComp);
+    panelUA.add(cmbUAComponent);
 
 
     JLabel lblUAinput = new JLabel("Action to be taken:");
@@ -949,20 +1333,21 @@ public class Main extends JFrame {
     taUAInput.addKeyListener(new KeyAdapter() {
       @Override
       public void keyReleased(KeyEvent e) {
-        if (cmbUAComp.getSelectedItem() != null && cmbUABehaviour.getSelectedItem() != null
+        if (cmbUAComponent.getSelectedItem() != null && cmbUABehaviour.getSelectedItem() != null
             && chckbxAppearPreAmble.isSelected() == true) {
           String[] userAction = new String[2];
           userAction[0] = taUAInput.getText();
           userAction[1] = "true";
-          userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
+          userActions.put(cmbUAComponent.getSelectedItem().toString() + ";"
               + cmbUABehaviour.getSelectedItem().toString(), userAction);
-        } else if (cmbUAComp.getSelectedItem() != null && cmbUABehaviour.getSelectedItem() != null
+        } else if (cmbUAComponent.getSelectedItem() != null
+            && cmbUABehaviour.getSelectedItem() != null
             && chckbxAppearPreAmble.isSelected() == false) {
 
           String[] userAction = new String[2];
           userAction[0] = taUAInput.getText();
           userAction[1] = "false";
-          userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
+          userActions.put(cmbUAComponent.getSelectedItem().toString() + ";"
               + cmbUABehaviour.getSelectedItem().toString(), userAction);
         }
         updateUATA();
@@ -972,17 +1357,21 @@ public class Main extends JFrame {
     panelUA.add(taUAInput);
 
 
-    cmbUAComp.addActionListener(new ActionListener() {
+    cmbUAComponent.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        updateUABehaviours();
-        populateUA();
+        if (cmbUAComponent.getSelectedItem() != null) {
+          updateUABehaviours();
+          updateUA();
+        }
       }
     });
 
 
     cmbUABehaviour.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        populateUA();
+        if (cmbUAComponent.getSelectedItem() != null) {
+          updateUA();
+        }
       }
     });
 
@@ -1007,13 +1396,13 @@ public class Main extends JFrame {
             String[] userAction = new String[2];
             userAction[0] = taUAInput.getText();
             userAction[1] = "true";
-            userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
+            userActions.put(cmbUAComponent.getSelectedItem().toString() + ";"
                 + cmbUABehaviour.getSelectedItem().toString(), userAction);
           } else {
             String[] userAction = new String[2];
             userAction[0] = taUAInput.getText();
             userAction[1] = "false";
-            userActions.put(cmbUAComp.getSelectedItem().toString() + ";"
+            userActions.put(cmbUAComponent.getSelectedItem().toString() + ";"
                 + cmbUABehaviour.getSelectedItem().toString(), userAction);
           }
         }
@@ -1042,20 +1431,20 @@ public class Main extends JFrame {
     return panelTP;
   }
 
-  public static void printErrorMessage(String error) {
+  private static void printErrorMessage(String error) {
     System.out.println(error);
     int errorIndex =
         Integer.parseInt(error.substring(error.indexOf('|') + 1, error.lastIndexOf('|')));
     String errorMessage = error.substring(error.lastIndexOf('|') + 1);
     switch (errorIndex) {
       case 0:
-        JOptionPane
-            .showMessageDialog(null, "IP address name resolution failed.\r\n" + errorMessage);
+        JOptionPane.showMessageDialog(null,
+            "IP address name resolution failed.\r\n" + errorMessage);
         System.out.println();
         break;
       case 1:
-        JOptionPane.showMessageDialog(null, "Unkown error while trying to connect to server.\r\n"
-            + errorMessage);
+        JOptionPane.showMessageDialog(null,
+            "Unkown error while trying to connect to server.\r\n" + errorMessage);
         break;
       case 2:
         JOptionPane.showMessageDialog(null,
@@ -1074,17 +1463,23 @@ public class Main extends JFrame {
         JOptionPane.showMessageDialog(null, "Unable to read Behaviour Tree Model");
         break;
       case 7:
-        JOptionPane.showMessageDialog(
-            null,
+        JOptionPane.showMessageDialog(null,
             "Unable to create folder. Please ensure write access is available in "
                 + System.getProperty("user.dir"));
         break;
       case 8:
-        JOptionPane.showMessageDialog(
-            null,
+        JOptionPane.showMessageDialog(null,
             "An unknown error blocked this application from opening "
                 + System.getProperty("user.dir") + System.getProperty("file.separator")
                 + "test-cases");
+        break;
+      case 9:
+        JOptionPane.showMessageDialog(null,
+            "Selected file has invalid type. Application can read \"btc\" and \"tcc.xml\" files only.");
+        break;
+      case 10:
+        JOptionPane.showMessageDialog(null,
+            "Selected Test Case Configuration is using a different version to the current application.");
         break;
       default:
         JOptionPane.showMessageDialog(null, "Other error.\r\n" + errorMessage);
@@ -1096,14 +1491,14 @@ public class Main extends JFrame {
   /**
    * Populate configuration in TCGen-UI
    */
-  public void populateData() {
+  private void populateData() {
 
     // load nodes NOI table
     readNodes();
 
-    populateCPTab();
-    populateObsTab();
-    populateUATab();
+    updateCPCmbBoxes();
+    updateORCmbBoxes();
+    updateUACmbBoxes();
 
     updateCPTA();
     updateOTA();
@@ -1124,120 +1519,17 @@ public class Main extends JFrame {
           compToBehaviourMap.put(node.getComponent(), new ArrayList<NodeData>());
         }
         compToBehaviourMap.get(node.getComponent()).add(node);
-        Object[] rowData =
-            {node.getTag(), node.getComponent(), node.getBehaviour(), node.getBehaviourType(), null};
+        Object[] rowData = {node.getTag(), node.getComponent(), node.getBehaviour(),
+            node.getBehaviourType(), null};
         ((DefaultTableModel) tblNOI.getModel()).addRow(rowData);
       }
     }
   }
 
-  private void populateCPTab() {
-    Map<String, ArrayList<String>> cpComponents = new HashMap<String, ArrayList<String>>();
-    for (int key : indexToNodeMap.keySet()) {
-      for (NodeData node : indexToNodeMap.get(key).getData()) {
-        if (node.getBehaviourType().equals("STATE-REALISATION")) {
-          if (!cpComponents.containsKey(node.getComponent())) {
-            cpComponents.put(node.getComponent(), new ArrayList<String>());
-          }
-          cpComponents.get(node.getComponent()).add(node.getBehaviour());
-          chosenCPs.put(node.getComponent() + ";" + node.getBehaviour(), false);
-        }
-      }
-    }
-
-    String[] cmbData = cpComponents.keySet().toArray(new String[0]);
-    cmbCPComponent.setModel(new DefaultComboBoxModel<String>(clean(cmbData)));
-    updateCPDisplay();
-  }
-
-  private void updateCPDisplay() {
-    Set<String> cmbBehaviourData = new HashSet<String>();
-    for (int key : indexToNodeMap.keySet()) {
-      for (NodeData node : indexToNodeMap.get(key).getData()) {
-        if (node.getComponent().equals(cmbCPComponent.getItemAt(cmbCPComponent.getSelectedIndex()))
-            && node.getBehaviourType().equals("STATE-REALISATION")) {
-          cmbBehaviourData.add(node.getBehaviour());
-        }
-      }
-    }
-    cmbCPBehaviour.setModel(new DefaultComboBoxModel<String>(clean(cmbBehaviourData
-        .toArray(new String[0]))));
-    updateCP();
-  }
-
-  private void populateObsTab() {
-
-    String[] obsComps = new String[compToBehaviourMap.size()];
-    int i = 0;
-    for (String key : compToBehaviourMap.keySet()) {
-      boolean accepted = false;
-      for (NodeData node : compToBehaviourMap.get(key)) {
-        if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())) {
-          accepted = true;
-          break;
-        }
-      }
-      if (accepted) {
-        obsComps[i++] = key;
-      }
-    }
-
-    cmbORComponent.setModel(new DefaultComboBoxModel<String>(clean(obsComps)));
-    updateObsBehaviours();
-  }
-
-  private void updateObsBehaviours() {
-    String[] obsBehaviours =
-        new String[compToBehaviourMap.get(cmbORComponent.getSelectedItem()).size()];
-    int i = 0;
-    if (cmbORComponent.getModel().getSize() > 0) {
-      System.out.println(cmbORComponent.getSelectedItem());
-      for (NodeData node : compToBehaviourMap.get(cmbORComponent.getSelectedItem())) {
-        if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())) {
-          obsBehaviours[i++] = node.getBehaviour() + " [" + node.getBehaviourType() + "]";
-        }
-      }
-    }
-    cmbORBehaviour.setModel(new DefaultComboBoxModel<String>(clean(obsBehaviours)));
-  }
-
-  private void populateUATab() {
-    String[] uaComp = new String[compToBehaviourMap.size()];
-    int i = 0;
-    for (String key : compToBehaviourMap.keySet()) {
-      boolean accepted = false;
-      for (NodeData node : compToBehaviourMap.get(key)) {
-        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
-          accepted = true;
-          break;
-        }
-      }
-      if (accepted) {
-        uaComp[i++] = key;
-      }
-    }
-
-    cmbUAComp.setModel(new DefaultComboBoxModel<String>(clean(uaComp)));
-    updateUABehaviours();
-  }
-
-  private void updateUABehaviours() {
-    String[] uaBehaviours = new String[compToBehaviourMap.get(cmbUAComp.getSelectedItem()).size()];
-    int i = 0;
-    if (cmbUAComp.getModel().getSize() > 0) {
-      for (NodeData node : compToBehaviourMap.get(cmbUAComp.getSelectedItem())) {
-        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
-          uaBehaviours[i++] = node.getBehaviour() + " [" + node.getBehaviourType() + "]";
-        }
-      }
-    }
-    cmbUABehaviour.setModel(new DefaultComboBoxModel<String>(clean(uaBehaviours)));
-  }
-
   /**
    * Remove null elements.
    */
-  public static String[] clean(final String[] v) {
+  private static String[] clean(final String[] v) {
     List<String> list = new ArrayList<String>(Arrays.asList(v));
     list.removeAll(Collections.singleton(null));
     return list.toArray(new String[list.size()]);
