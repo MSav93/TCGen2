@@ -190,11 +190,22 @@ public class Main extends JFrame {
    * Clear all previous configurations from memory.
    */
   private void clearEverything() {
-    // TODO something isn't being cleared that results in values in observables and user actions sticking around
-    int count = tblNOI.getRowCount();
-    for (int i = 0; i < count; i++) {
-      ((DefaultTableModel) tblNOI.getModel()).removeRow(0);
-    }
+    tblNOI.setModel(new DefaultTableModel(new Object[][] {},
+        new String[] {"Tag", "Component", "Behaviour", "Behaviour Type", "Select"}) {
+      private static final long serialVersionUID = -8673519275754805408L;
+      @SuppressWarnings("rawtypes")
+      Class[] columnTypes =
+          new Class[] {String.class, String.class, String.class, String.class, Boolean.class};
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      public Class getColumnClass(int columnIndex) {
+        return columnTypes[columnIndex];
+      }
+    });
+    tblNOI.getColumnModel().getColumn(1).setResizable(false);
+    tblNOI.getColumnModel().getColumn(2).setResizable(false);
+    tblNOI.getColumnModel().getColumn(3).setResizable(false);
+    tblNOI.getColumnModel().getColumn(4).setResizable(false);
 
     chosenCPs = new ArrayList<String>();
     observableResponses = new HashMap<>();
@@ -972,7 +983,9 @@ public class Main extends JFrame {
     /**
      * Load BT File.
      */
-    JMenuItem mntmLoad = new JMenuItem("Load BTModel or Test Case Config");
+    // TODO
+    // JMenuItem mntmLoad = new JMenuItem("Load BTModel or Test Case Config");
+    JMenuItem mntmLoad = new JMenuItem("DONT CLICK THIS");
     mntmLoad.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         JFileChooser chooser = new JFileChooser(
@@ -991,7 +1004,7 @@ public class Main extends JFrame {
           if (btFilePath.endsWith("tcc.xml")) {
             System.out.println("loading config");
             loadTCC(f);
-          } else if (btFilePath.endsWith("btc")) {
+          } else if (btFilePath.endsWith("btc") || btFilePath.endsWith("bt")) {
             System.out.println("loading model");
             loadBTModel(f);
           } else {
@@ -1084,6 +1097,7 @@ public class Main extends JFrame {
      */
     btnGenerateTestCases.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
+        clearEverything();
         tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab5Name), true);
       }
     });

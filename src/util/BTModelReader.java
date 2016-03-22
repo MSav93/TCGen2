@@ -16,8 +16,8 @@ import tree.NodeData;
 
 public class BTModelReader {
 
-  private static TreeMap<Integer, BTNode> indexToNodes = new TreeMap<Integer, BTNode>();
-  private static HashMap<String, Integer> tagToIndex = new HashMap<>(); // map tag to block
+  private TreeMap<Integer, BTNode> indexToNodes = new TreeMap<Integer, BTNode>();
+  private HashMap<String, Integer> tagToIndex = new HashMap<>(); // map tag to block
 
   public BTModelReader(String result) {
     org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
@@ -52,7 +52,7 @@ public class BTModelReader {
     return tagToIndex;
   }
 
-  private static ArrayList<NodeData> extractNodes(Element block) {
+  private ArrayList<NodeData> extractNodes(Element block) {
     Integer blockIndex = Integer.parseInt(block.getChildText("block-index"));
     List<Element> nodes = block.getChildren("node");
     ArrayList<NodeData> nodesArray = new ArrayList<NodeData>();
@@ -75,7 +75,7 @@ public class BTModelReader {
     return childrenIndices;
   }
 
-  private static BTNode readBTNode(List<Element> blocks, int index) {
+  private BTNode readBTNode(List<Element> blocks, int index) {
     Element block = blocks.get(index);
     ArrayList<NodeData> nodes = extractNodes(block);
 

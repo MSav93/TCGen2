@@ -1,0 +1,61 @@
+#RT R1 N1 R2 N2 R3 N3 R4 N4 R5 N5 R6 N6 R7 N7 R8 N8 R9 N9 R10 N10 R11 N11 R12 N12 R13 N13 R14 N14 R15 N15 R16 N16 R17 N17 R18 N18 R19 N19 R20 N20 R21 N21 R22 N22 R23 N23 R24 N24 R25 N25 R26 N26 R27 N27 R28 N28 R29 N29 R30 N30 R31 N31
+
+#C C1 ATM
+#S 1 Ready 
+#S 2 PerformTransaction
+
+#C C2 Reader
+#EI 1 acceptCard
+#EI 2 ejectCard
+
+#C C3 Display
+#S 1 ShowTransTypes
+#S 2 ShowAccTypes
+#S 3 ShowWdAmounts
+#S 4 OfferAnotherTrans
+#EO 5 insufficientFunds
+#EO 6 noSuchAccount
+#S 7 etc
+
+#C C4 Customer
+#E 1 cancel
+#E 2 withdraw
+#E 3 transfer
+#E 4 yes
+#E 5 no
+
+#C C5 Console
+#EI 1 getAccount(acc) 
+#EI 2 getAmount(amt)
+#S 3 IgnoreCancel
+#L 4 IgnoreCancel
+#L 5 else
+
+#C C6 Coms
+#EO 1 withdrawal(acc,amt)
+#EI 2 approvedWd(bal)
+#EI 3 insufficientFunds
+#EI 4 noSuchAccount
+
+#C C7 Printer
+#EO 1 wdReceipt(acc,amt,bal)
+
+#T R1 C1 1; R2 C2 1; R3 C1 2 #P{
+	R4 C2 1 #N{
+		R5 C4 2; R6 C3 1; R7 C5 3; R8 C3 2; R9 C5 4;; R10 C5 3; R11 C6 1 #N{
+			R12 C6 2; R13 C7 1; R14 C3 4 #N{
+				R15 C4 4; R16 C1 2^
+				R17 C4 5; R18 C2 2; R19 C1 1^
+				}
+			R20 C6 3; R21 C3 5; R22 C3 3^
+			R23 C6 4; R24 C3 6; R25 C3 2^ 
+			}
+		R25 C4 3; R26 C3 7
+		}
+	R27 C4 1 #N{
+		R28 C5 4; R29 C4 1^
+		R30 C5 5; R31 C3 4=>
+		}
+	}
+
+

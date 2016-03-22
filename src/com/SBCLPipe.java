@@ -16,6 +16,7 @@ public class SBCLPipe {
 
   public String sendCommand(String command) {
     output.println(command);
+    output.flush();
     String result = "";
     Boolean end = false;
     long start = System.currentTimeMillis();
@@ -25,12 +26,11 @@ public class SBCLPipe {
       while (end == false) {
         result = result.concat(input.readLine());
         end = result.contains("</result>");
-        output.flush();
       }
       if (System.currentTimeMillis() - start > 5000) {
         return "error|5|";
       }
-      System.out.println(result);
+      System.out.println("RESULT: " + result);
       return result;
     } catch (IOException e) {
       e.printStackTrace();
