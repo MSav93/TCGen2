@@ -31,16 +31,12 @@ public class BTModelReader {
     } catch (JDOMException | IOException e) {
       e.printStackTrace();
     }
-
     Element rootNode = doc.getRootElement();
     List<Element> blocks = rootNode.getChildren("block");
 
     for (int i = 0; i < blocks.size(); i++) {
       indexToNodes.put(Integer.parseInt(blocks.get(i).getChildText("block-index")),
           readBTNode(blocks, Integer.parseInt(blocks.get(i).getChildText("block-index"))));
-    }
-    for (Integer key : indexToNodes.keySet()) {
-      System.out.println(indexToNodes.get(key));
     }
   }
 

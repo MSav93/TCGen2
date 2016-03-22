@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config version="0.1" filepath="C:\Users\Mitch\OneDrive\Documents\workspace\TP-Optimizer\models\BRL150515.btc">
+  <NOI>
+    <node tag="0" component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" />
+    <node tag="2" component="Label" behaviour="Null" behaviour-type="STATE-REALISATION" />
+    <node tag="10" component="Label" behaviour="TP" behaviour-type="STATE-REALISATION" />
+    <node tag="14" component="User" behaviour="leftClick" behaviour-type="EVENT" />
+    <node tag="17" component="Vector" behaviour="dynamic" behaviour-type="STATE-REALISATION" />
+    <node tag="21" component="User" behaviour="hitEsc" behaviour-type="EVENT" />
+    <node tag="15" component="Pointer" behaviour="OverVS" behaviour-type="SELECTION" />
+    <node tag="6" component="Pointer" behaviour="OverT" behaviour-type="SELECTION" />
+  </NOI>
+  <CP>
+    <node component="Label" behaviour="TT" />
+    <node component="Vector" behaviour="dynamic" />
+    <node component="Vector" behaviour="fixed" />
+    <node component="Dummy" behaviour="PtrMvmt" />
+    <initial tag="Node 23" component="Dummy" behaviour="PtrMvmt" behaviour-type="STATE-REALISATION" />
+  </CP>
+  <OR>
+    <node component="Label" behaviour="Null " behaviour-type="STATE-REALISATION" observation="dshaudsaiudnisuaduisiands a" />
+    <node component="Label" behaviour="TP " behaviour-type="STATE-REALISATION" observation="dshaudsaiudnisuaduisiands a" />
+    <node component="Dummy" behaviour="PtrMvmt " behaviour-type="STATE-REALISATION" observation="dshaudsaiudnisuaduisiands a" />
+  </OR>
+  <UA>
+    <node component="User" behaviour="movePtrOverVS " behaviour-type="EVENT" action="dshaudsaiudnisuaduisiands a" preamble="false" />
+    <node component="User" behaviour="movePtrOverT " behaviour-type="EVENT" action="dshaudsaiudnisuaduisiands a" preamble="false" />
+    <node component="User" behaviour="movePtrOverP " behaviour-type="EVENT" action="dshaudsaiudnisuaduisiands" preamble="true" />
+    <node component="User" behaviour="HitBRLKey " behaviour-type="EVENT" action="dshaudsaiudnisuaduisiands a" preamble="true" />
+  </UA>
+</config>

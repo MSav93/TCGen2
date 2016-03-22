@@ -30,7 +30,6 @@ public class SBCLPipe {
       if (System.currentTimeMillis() - start > 5000) {
         return "error|5|";
       }
-      System.out.println("RESULT: " + result);
       return result;
     } catch (IOException e) {
       e.printStackTrace();

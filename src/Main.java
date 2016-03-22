@@ -9,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Files;
@@ -25,6 +26,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -49,13 +52,17 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
 import org.jdom2.Attribute;
+import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 import com.SBCLPipe;
 
 import other.AlphanumComparator;
+import other.TableCellListener;
 import other.TestPath;
 import other.TestPathCell;
 import other.TestPathModel;
@@ -129,7 +136,8 @@ public class Main extends JFrame {
    */
   private String btXML;
   private String btFilePath;
-  private String initialNode;
+  private String initialNode = "";
+
 
   /**
    * Other
@@ -137,14 +145,12 @@ public class Main extends JFrame {
   private SBCLPipe sbcl = new SBCLPipe();
   private Boolean isLoaded = false;
 
-
-
-  private static final long serialVersionUID = 1L;
-
+  ArrayList<String> chosenNOIs = new ArrayList<String>();
   ArrayList<String> chosenCPs = new ArrayList<String>();
   HashMap<String, String> observableResponses = new HashMap<>();
   HashMap<String, String[]> userActions = new HashMap<>();
 
+  private static final long serialVersionUID = 1L;
 
   /**
    * Launch the application.
@@ -242,50 +248,43 @@ public class Main extends JFrame {
   }
 
   private void loadBTModel(File f) {
-    String result = connectToServer();
-    if (!(result.equals("") || result.contains("error"))) {
-      clearEverything();
-      System.out.println("loading model");
+    System.out.println("FILE: " + f.getAbsolutePath());
+    clearEverything();
+    btFilePath = f.getAbsolutePath();
+    System.out.println("loading model");
 
-      // load bt-file into BTAnalyser
-      System.out.println("Processing bt file");
-      sbcl.sendCommand("(process-bt-file \"" + (f.getPath()).replace("\\", "/") + "\")");
+    // load bt-file into BTAnalyser
+    System.out.println("Processing bt file");
+    sbcl.sendCommand("(process-bt-file \"" + (f.getPath()).replace("\\", "/") + "\")");
 
-      // important to ensure resulting TCPs are reachable/valid
-      System.out.println("Ensure TCPs are reachable");
-      sbcl.sendCommand("(reachable-states)");
+    // important to ensure resulting TCPs are reachable/valid
+    System.out.println("Ensure TCPs are reachable");
+    sbcl.sendCommand("(reachable-states)");
 
-      System.out.println("Building BT");
-      btXML = sbcl.sendCommand("(print-bt)");
-      if (!btXML.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
-        readBTXML(btXML);
-      } else {
-        printErrorMessage("error|6|");
-        return;
-      }
-
-      populateData();
-      isLoaded = true;
-      frame.setTitle("TP-Optimizer - " + f.getName());
+    System.out.println("Building BT");
+    btXML = sbcl.sendCommand("(print-bt)");
+    if (!btXML.equals("<result><error>No Behavior Tree loaded.</error></result>")) {
+      readBTXML(btXML);
     } else {
-      printErrorMessage("error|4|");
+      printErrorMessage("error|6|");
+      return;
     }
+
+    populateData();
+    isLoaded = true;
+    frame.setTitle("TP-Optimizer - " + f.getName());
   }
 
   private void loadTCC(File f) {
-    String result = connectToServer();
-    if (!(result.equals("") || result.contains("error"))) {
-      clearEverything();
-      try {
-        btXML = new String(Files.readAllBytes(Paths.get(f.getPath())));
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-      readBTXML(btXML);
-      populateData();
-      readConfig(btXML);
-    } else {
-      printErrorMessage("error|4|");
+    clearEverything();
+    String file = null;
+    try {
+      file = new String(Files.readAllBytes(Paths.get(f.getPath())));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    if (file != null) {
+      readConfig(file);
     }
   }
 
@@ -308,12 +307,13 @@ public class Main extends JFrame {
       e.printStackTrace();
     }
 
-    Element rootNode = doc.getRootElement();
-    Element config = rootNode.getChild("config");
+    Element config = doc.getRootElement();
     if (!config.getAttributeValue("version").equals(Constants.version)) {
       printErrorMessage("error|6|");
     }
     btFilePath = config.getAttributeValue("filepath");
+    File f = new File(btFilePath);
+    loadBTModel(f);
 
     // NOIS
     List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
@@ -331,6 +331,8 @@ public class Main extends JFrame {
               && behaviour.equals(node.getAttributeValue("behaviour"))
               && behaviourType.equals(node.getAttributeValue("behaviour-type"))) {
             // Selects this node as a NOI
+            chosenNOIs.add(new String(tblNOI.getValueAt(i, 0) + ";" + tblNOI.getValueAt(i, 1) + ";"
+                + tblNOI.getValueAt(i, 2) + ";" + tblNOI.getValueAt(i, 3)));
             tblNOI.setValueAt(true, i, 4);
             // Remove node from remaining list of unmatched nodes
             nodesToBeRemoved.add(node);
@@ -343,7 +345,7 @@ public class Main extends JFrame {
     }
 
     // CPs
-    List<Element> checkpoints = config.getChild("CP").getChildren("element");
+    List<Element> checkpoints = config.getChild("CP").getChildren("node");
     ArrayList<Element> checkpointsToBeRemoved = new ArrayList<Element>();
     for (Element cp : checkpoints) {
       if (checkElementsAttributes(cp, "cp")) {
@@ -353,7 +355,9 @@ public class Main extends JFrame {
           ArrayList<NodeData> nodes = compToBehaviourMap.get(component);
           for (NodeData node : nodes) {
             if (node.getBehaviour().equals(behaviour)) {
+              // Selects this node as a CP
               chosenCPs.add(component + ";" + behaviour);
+              // Remove node from remaining list of unmatched nodes
               checkpointsToBeRemoved.add(cp);
               break;
             }
@@ -367,30 +371,43 @@ public class Main extends JFrame {
 
     // Initial CP
     Element initialCp = config.getChild("CP").getChild("initial");
-    if (checkElementsAttributes(initialCp, "initial")) {
-      String cpComponent = initialCp.getAttributeValue("component");
-      String cpBehaviour = initialCp.getAttributeValue("behaviour");
-      boolean found = false;
-      if (compToBehaviourMap.containsKey(cpComponent)) {
-        ArrayList<NodeData> nodes = compToBehaviourMap.get(cpComponent);
-        for (NodeData node : nodes) {
-          if (node.getBehaviour().equals(cpBehaviour)) {
-            found = true;
-            break;
+
+    if (initialCp != null) {
+      String initial = "";
+      if (checkElementsAttributes(initialCp, "initial")) {
+        String cpComponent = initialCp.getAttributeValue("component");
+        String cpBehaviour = initialCp.getAttributeValue("behaviour");
+        boolean found = false;
+        if (compToBehaviourMap.containsKey(cpComponent)) {
+          ArrayList<NodeData> nodes = compToBehaviourMap.get(cpComponent);
+          for (NodeData node : nodes) {
+            if (node.getBehaviour().equals(cpBehaviour)) {
+              found = true;
+              break;
+            }
           }
         }
+        if (found) {
+          initial = "Node " + initialCp.getAttributeValue("tag") + ": "
+              + initialCp.getAttributeValue("component") + " - "
+              + initialCp.getAttributeValue("behaviour") + " ["
+              + initialCp.getAttributeValue("behaviour-type") + "]";
+          initialCp = null;
+        }
       }
-      if (found) {
-        initialNode = "Node " + initialCp.getAttributeValue("tag") + ": "
-            + initialCp.getAttributeValue("component") + " - "
-            + initialCp.getAttributeValue("behaviour") + " ["
-            + initialCp.getAttributeValue("behaviour-type") + "]";
-        initialCp = null;
+      if (initial != "") {
+        updateCPInitial();
+        for (int i = 0; i < cmbInitialState.getItemCount(); i++) {
+          if (initial.equals(cmbInitialState.getItemAt(i))) {
+            cmbInitialState.setSelectedItem(cmbInitialState.getItemAt(i));
+            initialNode = cmbInitialState.getItemAt(i);
+          }
+        }
       }
     }
 
     // Observable Responses
-    List<Element> observables = config.getChild("OR").getChildren("element");
+    List<Element> observables = config.getChild("OR").getChildren();
     ArrayList<Element> observablesToBeRemoved = new ArrayList<Element>();
     for (Element or : observables) {
       if (checkElementsAttributes(or, "or")) {
@@ -402,9 +419,11 @@ public class Main extends JFrame {
           for (NodeData node : nodes) {
             if (node.getBehaviour().equals(orBehaviour)
                 && node.getBehaviourType().equals(orBehaviourType)) {
+              // Populate this nodes observables
               observableResponses.put(
                   orComponent + ";" + orBehaviour + " [" + orBehaviourType + "]",
                   or.getAttributeValue("observation"));
+              // Remove node from remaining list of unmatched nodes
               observablesToBeRemoved.add(or);
               break;
 
@@ -418,7 +437,7 @@ public class Main extends JFrame {
     }
 
     // User Actions
-    List<Element> actions = config.getChild("UA").getChildren("element");
+    List<Element> actions = config.getChild("UA").getChildren();
     ArrayList<Element> actionsToBeRemoved = new ArrayList<Element>();
     for (Element ua : actions) {
       if (checkElementsAttributes(ua, "ua")) {
@@ -430,8 +449,10 @@ public class Main extends JFrame {
           for (NodeData node : nodes) {
             if (node.getBehaviour().equals(uaBehaviour)
                 && node.getBehaviourType().equals(uaBehaviourType)) {
+              // Populate this nodes actions
               userActions.put(uaComponent + ";" + uaBehaviour + " [" + uaBehaviourType + "]",
                   new String[] {ua.getAttributeValue("action"), ua.getAttributeValue("preamble")});
+              // Remove node from remaining list of unmatched nodes
               actionsToBeRemoved.add(ua);
               break;
             }
@@ -442,6 +463,9 @@ public class Main extends JFrame {
     for (Element ua : actionsToBeRemoved) {
       actions.remove(ua);
     }
+
+    // TP
+    // TODO
     updateDisplay();
     reportConfigDifferences(nodesOfInterest, checkpoints, initialCp, observables, actions);
   }
@@ -519,6 +543,44 @@ public class Main extends JFrame {
     }
   }
 
+  /**
+   * Populate configuration in TCGen-UI
+   */
+  private void populateData() {
+
+    // load nodes NOI table
+    populateNodeMaps();
+
+    updateCPCmbBoxes();
+    updateORCmbBoxes();
+    updateUACmbBoxes();
+
+    updateCPTA();
+    updateOTA();
+    updateUATA();
+
+    btnGenerateTestCases.setEnabled(true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab1Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab2Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab3Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab4Name), true);
+  }
+
+  private void populateNodeMaps() {
+    for (int key : indexToNodeMap.keySet()) {
+      for (NodeData node : indexToNodeMap.get(key).getData()) {
+        tagToNodeDataMap.put(node.getTag(), node);
+        if (!compToBehaviourMap.containsKey(node.getComponent())) {
+          compToBehaviourMap.put(node.getComponent(), new ArrayList<NodeData>());
+        }
+        compToBehaviourMap.get(node.getComponent()).add(node);
+        Object[] rowData = {node.getTag(), node.getComponent(), node.getBehaviour(),
+            node.getBehaviourType(), false};
+        ((DefaultTableModel) tblNOI.getModel()).addRow(rowData);
+      }
+    }
+  }
+
   private void updateDisplay() {
     updateCPTab();
     updateORTab();
@@ -527,13 +589,14 @@ public class Main extends JFrame {
 
   private void reportConfigDifferences(List<Element> nodesOfInterest, List<Element> checkpoints,
       Element initialCp, List<Element> observables, List<Element> actions) {
+    //TODO make this look better
     if (nodesOfInterest.size() > 0 || checkpoints.size() > 0 || initialCp != null
         || observables.size() > 0 || actions.size() > 0) {
       StringBuilder sb = new StringBuilder();
       sb.append(
           "The following elements found within the Test Case Configuration could not be matched to the BT Model.");
       sb.append(System.getProperty("line.separator"));
-      sb.append("Please check the spelling of element attribute values.");
+      sb.append("Please check the spelling of element attribute names and values.");
       sb.append(System.getProperty("line.separator"));
       sb.append(System.getProperty("line.separator"));
 
@@ -620,7 +683,6 @@ public class Main extends JFrame {
   private void updateCPTab() {
     updateCPCmbBoxes();
     updateCPTA();
-    updateCPInitial();
     updateCPCheckBox();
   }
 
@@ -662,8 +724,9 @@ public class Main extends JFrame {
    * Populate Initial CP combo box.
    */
   private void updateCPInitial() {
-    String[] potentialCP = new String[indexToNodeMap.size()];
+    String[] potentialCP = new String[indexToNodeMap.size() + 1];
     int i = 0;
+    potentialCP[i++] = "";
     for (int key : indexToNodeMap.keySet()) {
       for (NodeData node : indexToNodeMap.get(key).getData()) {
         for (String selectedCP : chosenCPs) {
@@ -678,14 +741,13 @@ public class Main extends JFrame {
         }
       }
     }
-    // TODO allow cmbInitialState to have "" as an option?
     potentialCP = clean(potentialCP);
     Arrays.sort(potentialCP, new AlphanumComparator());
     cmbInitialState.setModel(new DefaultComboBoxModel<String>(potentialCP));
     if (cmbInitialState.getSelectedItem() != null) {
       initialNode = cmbInitialState.getSelectedItem().toString();
     } else {
-      initialNode = null;
+      initialNode = "";
     }
   }
 
@@ -750,7 +812,6 @@ public class Main extends JFrame {
         new String[compToBehaviourMap.get(cmbORComponent.getSelectedItem()).size()];
     int i = 0;
     if (cmbORComponent.getModel().getSize() > 0) {
-      System.out.println(cmbORComponent.getSelectedItem());
       for (NodeData node : compToBehaviourMap.get(cmbORComponent.getSelectedItem())) {
         if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())
             && !Constants.unnaceptedObsFlags.contains(node.getFlag())) {
@@ -887,7 +948,7 @@ public class Main extends JFrame {
   /**
    * Open folder containing test cases.
    */
-  public void openFolder() {
+  private void openFolder() {
     String path =
         System.getProperty("user.dir") + System.getProperty("file.separator") + "test-cases";
     Path thePath = Paths.get(path);
@@ -919,13 +980,37 @@ public class Main extends JFrame {
    * Populate test case configuration in TCC file format.
    */
 
-  public void SaveConfig() {
+  private void SaveConfig() {
     JFrame parentFrame = new JFrame();
 
-    JFileChooser fileChooser = new JFileChooser();
+    JFileChooser fileChooser = new JFileChooser() {
+      private static final long serialVersionUID = 1L;
+
+      @Override
+      public void approveSelection() {
+        File f = getSelectedFile();
+        if (f.exists()) {
+          int result = JOptionPane.showConfirmDialog(this, "The file exists, overwrite?",
+              "Existing file", JOptionPane.YES_NO_CANCEL_OPTION);
+          switch (result) {
+            case JOptionPane.YES_OPTION:
+              super.approveSelection();
+              return;
+            case JOptionPane.NO_OPTION:
+              return;
+            case JOptionPane.CLOSED_OPTION:
+              return;
+            case JOptionPane.CANCEL_OPTION:
+              cancelSelection();
+              return;
+          }
+        }
+        super.approveSelection();
+      }
+    };
 
     javax.swing.filechooser.FileFilter filter =
-        new FileNameExtensionFilter("Test Case Config file (.TCC)", new String[] {"TCC"});
+        new FileNameExtensionFilter("Test Case Config file (.tcc.xml)", new String[] {"xml"});
     fileChooser.addChoosableFileFilter(filter);
     fileChooser.setFileFilter(filter);
 
@@ -934,8 +1019,108 @@ public class Main extends JFrame {
     int userSelection = fileChooser.showSaveDialog(parentFrame);
 
     if (userSelection == JFileChooser.APPROVE_OPTION) {
-      // TODO Save File here
+
+      File fileToSave = fileChooser.getSelectedFile();
+      String filename = fileToSave.getAbsolutePath();
+      if (fileToSave.getAbsolutePath().endsWith(".tcc.xml")) {
+        filename = filename.substring(0, filename.length() - 8);
+      }
+      System.out.println("Save as file: " + filename + ".tcc.xml");
+      XMLOutputter xmlOut = new XMLOutputter(Format.getPrettyFormat());
+      FileOutputStream fos;
+      try {
+        fos = new FileOutputStream(filename + ".tcc.xml");
+        fos.write(xmlOut.outputString(constructTCC()).getBytes());
+        fos.close();
+      } catch (Exception e) {
+
+      }
     }
+  }
+
+  private Document constructTCC() {
+    Document doc = new Document();
+    Element config = new Element("config");
+    config.setAttribute(new Attribute("version", Constants.version));
+    config.setAttribute(new Attribute("filepath", btFilePath));
+    Element noi = new Element("NOI");
+    for (String node : chosenNOIs) {
+      String[] nodeData = node.split(";");
+      String tag = nodeData[0];
+      String component = nodeData[1];
+      String behaviour = nodeData[2];
+      String behaviourType = nodeData[3];
+      Element nodeToAdd = new Element("node");
+      nodeToAdd.setAttribute("tag", tag);
+      nodeToAdd.setAttribute("component", component);
+      nodeToAdd.setAttribute("behaviour", behaviour);
+      nodeToAdd.setAttribute("behaviour-type", behaviourType);
+      noi.addContent(nodeToAdd);
+    }
+
+    Element cp = new Element("CP");
+    for (String node : chosenCPs) {
+      String[] nodeData = node.split(";");
+      String component = nodeData[0];
+      String behaviour = nodeData[1];
+      Element nodeToAdd = new Element("node");
+      nodeToAdd.setAttribute("component", component);
+      nodeToAdd.setAttribute("behaviour", behaviour);
+      cp.addContent(nodeToAdd);
+    }
+    if (!initialNode.equals("")) {
+      Element initialCP = new Element("initial");
+      String initialTag = initialNode.split(":")[0];
+      String initialData = initialNode.split(":")[1];
+      String initialComponent = initialData.substring(1, initialData.indexOf("-") - 1);
+      String initialBehaviour =
+          initialData.substring(initialData.indexOf("-") + 2, initialData.indexOf("[") - 1);
+      String initialBehaviourType =
+          initialData.substring(initialData.indexOf("[") + 1, initialData.indexOf("]"));
+      initialCP.setAttribute("tag", initialTag);
+      initialCP.setAttribute("component", initialComponent);
+      initialCP.setAttribute("behaviour", initialBehaviour);
+      initialCP.setAttribute("behaviour-type", initialBehaviourType);
+      cp.addContent(initialCP);
+    }
+
+    Element or = new Element("OR");
+    for (Entry<String, String> observation : observableResponses.entrySet()) {
+      String[] nodeData = observation.getKey().split(";");
+      String component = nodeData[0];
+      String behaviour = nodeData[1].substring(0, nodeData[1].indexOf("["));
+      String behaviourType =
+          nodeData[1].substring(nodeData[1].indexOf("[") + 1, nodeData[1].indexOf("]"));
+      Element nodeToAdd = new Element("node");
+      nodeToAdd.setAttribute("component", component);
+      nodeToAdd.setAttribute("behaviour", behaviour);
+      nodeToAdd.setAttribute("behaviour-type", behaviourType);
+      nodeToAdd.setAttribute("observation", observation.getValue());
+      or.addContent(nodeToAdd);
+    }
+
+    Element ua = new Element("UA");
+    for (Entry<String, String[]> action : userActions.entrySet()) {
+      String[] nodeData = action.getKey().split(";");
+      String component = nodeData[0];
+      String behaviour = nodeData[1].substring(0, nodeData[1].indexOf("["));
+      String behaviourType =
+          nodeData[1].substring(nodeData[1].indexOf("[") + 1, nodeData[1].indexOf("]"));
+      Element nodeToAdd = new Element("node");
+      nodeToAdd.setAttribute("component", component);
+      nodeToAdd.setAttribute("behaviour", behaviour);
+      nodeToAdd.setAttribute("behaviour-type", behaviourType);
+      nodeToAdd.setAttribute("action", action.getValue()[0]);
+      nodeToAdd.setAttribute("preamble", action.getValue()[1]);
+      ua.addContent(nodeToAdd);
+    }
+
+    config.addContent(noi);
+    config.addContent(cp);
+    config.addContent(or);
+    config.addContent(ua);
+    doc.addContent(config);
+    return doc;
   }
 
   public Main() {
@@ -983,9 +1168,7 @@ public class Main extends JFrame {
     /**
      * Load BT File.
      */
-    // TODO
-    // JMenuItem mntmLoad = new JMenuItem("Load BTModel or Test Case Config");
-    JMenuItem mntmLoad = new JMenuItem("DONT CLICK THIS");
+    JMenuItem mntmLoad = new JMenuItem("Load BTModel or Test Case Config");
     mntmLoad.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         JFileChooser chooser = new JFileChooser(
@@ -1002,16 +1185,24 @@ public class Main extends JFrame {
           System.out.println("You chose " + f.getPath());
           btFilePath = (f.getPath()).replace("\\", "/");
           if (btFilePath.endsWith("tcc.xml")) {
-            System.out.println("loading config");
-            loadTCC(f);
+            String result = connectToServer();
+            if (!(result.equals("") || result.contains("error"))) {
+              System.out.println("loading config");
+              loadTCC(f);
+            } else {
+              printErrorMessage("error|4|");
+            }
           } else if (btFilePath.endsWith("btc") || btFilePath.endsWith("bt")) {
-            System.out.println("loading model");
-            loadBTModel(f);
+            String result = connectToServer();
+            if (!(result.equals("") || result.contains("error"))) {
+              System.out.println("loading model");
+              loadBTModel(f);
+            } else {
+              printErrorMessage("error|4|");
+            }
           } else {
             printErrorMessage("error|9|");
           }
-        } else if (retVal == JFileChooser.CANCEL_OPTION) {
-          System.out.println("You cancelled the choice");
         } else if (retVal == JFileChooser.ERROR_OPTION) {
           printErrorMessage("error|6|");
         }
@@ -1023,7 +1214,11 @@ public class Main extends JFrame {
     JMenuItem mntmSave = new JMenuItem("Save Test Case Config");
     mntmSave.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        SaveConfig();
+        if (isLoaded) {
+          SaveConfig();
+        } else {
+          printErrorMessage("error|11|");
+        }
       }
     });
     mnFile.add(mntmSave);
@@ -1089,7 +1284,9 @@ public class Main extends JFrame {
     });
     contentPane.add(btnGenerateExcel);
 
-    btnGenerateTestCases = new JButton("Generate Test Cases");
+    // TODO
+    // btnGenerateTestCases = new JButton("Generate Test Cases");
+    btnGenerateTestCases = new JButton("DON'T ClICK THIS");
     btnGenerateTestCases.setEnabled(false);
     btnGenerateTestCases.setBounds(72, 59, 281, 51);
     /**
@@ -1097,7 +1294,6 @@ public class Main extends JFrame {
      */
     btnGenerateTestCases.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        clearEverything();
         tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab5Name), true);
       }
     });
@@ -1151,6 +1347,28 @@ public class Main extends JFrame {
     tblNOI.getColumnModel().getColumn(2).setResizable(false);
     tblNOI.getColumnModel().getColumn(3).setResizable(false);
     tblNOI.getColumnModel().getColumn(4).setResizable(false);
+
+    Action cellChangeAction = new AbstractAction() {
+      private static final long serialVersionUID = -7226814055304660509L;
+
+      public void actionPerformed(ActionEvent e) {
+        TableCellListener tcl = (TableCellListener) e.getSource();
+        if (tcl.getColumn() == 4) {
+          int row = tcl.getRow();
+          String node = tblNOI.getValueAt(row, 0) + ";" + tblNOI.getValueAt(row, 1) + ";"
+              + tblNOI.getValueAt(row, 2) + ";" + tblNOI.getValueAt(row, 3);
+          if ((boolean) tcl.getNewValue()) {
+            if (!chosenNOIs.contains(node)) {
+              chosenNOIs.add(node);
+            }
+          } else {
+            chosenNOIs.remove(node);
+          }
+        }
+      }
+    };
+    new TableCellListener(tblNOI, cellChangeAction);
+
     return panelNOI;
   }
 
@@ -1446,7 +1664,6 @@ public class Main extends JFrame {
   }
 
   private static void printErrorMessage(String error) {
-    System.out.println(error);
     int errorIndex =
         Integer.parseInt(error.substring(error.indexOf('|') + 1, error.lastIndexOf('|')));
     String errorMessage = error.substring(error.lastIndexOf('|') + 1);
@@ -1454,7 +1671,6 @@ public class Main extends JFrame {
       case 0:
         JOptionPane.showMessageDialog(null,
             "IP address name resolution failed.\r\n" + errorMessage);
-        System.out.println();
         break;
       case 1:
         JOptionPane.showMessageDialog(null,
@@ -1495,50 +1711,15 @@ public class Main extends JFrame {
         JOptionPane.showMessageDialog(null,
             "Selected Test Case Configuration is using a different version to the current application.");
         break;
+      case 11:
+        JOptionPane.showMessageDialog(null, "There is nothing to save.");
+        break;
       default:
         JOptionPane.showMessageDialog(null, "Other error.\r\n" + errorMessage);
         break;
     }
   }
 
-
-  /**
-   * Populate configuration in TCGen-UI
-   */
-  private void populateData() {
-
-    // load nodes NOI table
-    readNodes();
-
-    updateCPCmbBoxes();
-    updateORCmbBoxes();
-    updateUACmbBoxes();
-
-    updateCPTA();
-    updateOTA();
-    updateUATA();
-
-    btnGenerateTestCases.setEnabled(true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab1Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab2Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab3Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab4Name), true);
-  }
-
-  private void readNodes() {
-    for (int key : indexToNodeMap.keySet()) {
-      for (NodeData node : indexToNodeMap.get(key).getData()) {
-        tagToNodeDataMap.put(node.getTag(), node);
-        if (!compToBehaviourMap.containsKey(node.getComponent())) {
-          compToBehaviourMap.put(node.getComponent(), new ArrayList<NodeData>());
-        }
-        compToBehaviourMap.get(node.getComponent()).add(node);
-        Object[] rowData = {node.getTag(), node.getComponent(), node.getBehaviour(),
-            node.getBehaviourType(), null};
-        ((DefaultTableModel) tblNOI.getModel()).addRow(rowData);
-      }
-    }
-  }
 
   /**
    * Remove null elements.
@@ -1550,7 +1731,6 @@ public class Main extends JFrame {
   }
 
   private String connectToServer() {
-    System.out.println("Connecting to server");
     String connectionResult = "";
     try {
       connectionResult = sbcl.connect("localhost", 12);
@@ -1561,7 +1741,6 @@ public class Main extends JFrame {
     } catch (InterruptedException | IOException e) {
       // nop
     }
-    System.out.println("Successfully connected");
     return connectionResult;
   }
 }

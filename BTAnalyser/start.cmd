@@ -1,2 +1,2 @@
-start /w sbcl --load "start.lisp"
+start /b /w sbcl --load "start.lisp"
 exit
