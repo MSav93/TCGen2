@@ -2,22 +2,22 @@ package tree;
 
 import java.util.List;
 
-public class BTNode {
+public class Block {
 
   private Integer parent;
   private List<Integer> children;
-  private List<NodeData> data;
+  private List<Node> nodes;
   private Integer index;
   private String branchType;
 
 
-  public BTNode(Integer parentParam, List<Integer> childrenParam, Integer indexParam,
-      String branchTypeParam, List<NodeData> dataParam) {
+  public Block(Integer parentParam, List<Integer> childrenParam, Integer indexParam,
+      String branchTypeParam, List<Node> nodesParam) {
     parent = parentParam;
     children = childrenParam;
     index = indexParam;
     branchType = branchTypeParam;
-    data = dataParam;
+    nodes = nodesParam;
   }
 
   public Integer getParent() {
@@ -37,13 +37,13 @@ public class BTNode {
     return branchType;
   }
   
-  public List<NodeData> getData() {
-    return data;
+  public List<Node> getNodes() {
+    return nodes;
   }
 
   @Override
   public String toString() {
-    String retVal = "(" + index + "," + data + ", ";
+    String retVal = "(" + index + "," + nodes + ", ";
     System.out.println(index + ", " + children);
     for(Integer child : children) {
       retVal = retVal.concat(child + ",");

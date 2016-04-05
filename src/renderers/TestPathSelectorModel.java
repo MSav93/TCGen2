@@ -1,20 +1,22 @@
-package other;
+package renderers;
 
 import java.util.List;
 
 import javax.swing.table.AbstractTableModel;
 
-public class TestPathModel extends AbstractTableModel {
-  private static final long serialVersionUID = -7480665278104499754L;
-  List<TestPath> paths;
+import other.TestCase;
 
-  public TestPathModel(List<TestPath> paths) {
+public class TestPathSelectorModel extends AbstractTableModel {
+  private static final long serialVersionUID = -7480665278104499754L;
+  List<TestCase> paths;
+
+  public TestPathSelectorModel(List<TestCase> paths) {
     this.paths = paths;
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
-    return TestPath.class;
+    return TestCase.class;
   }
 
   public int getColumnCount() {

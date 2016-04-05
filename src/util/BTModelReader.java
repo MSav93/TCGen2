@@ -3,7 +3,6 @@ package util;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -11,13 +10,12 @@ import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.input.SAXBuilder;
 
-import tree.BTNode;
-import tree.NodeData;
+import tree.Block;
+import tree.Node;
 
 public class BTModelReader {
 
-  private TreeMap<Integer, BTNode> indexToNodes = new TreeMap<Integer, BTNode>();
-  private HashMap<String, Integer> tagToIndex = new HashMap<>(); // map tag to block
+  private TreeMap<Integer, Block> indexToNodes = new TreeMap<Integer, Block>();
 
   public BTModelReader(String result) {
     org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
@@ -36,28 +34,22 @@ public class BTModelReader {
 
     for (int i = 0; i < blocks.size(); i++) {
       indexToNodes.put(Integer.parseInt(blocks.get(i).getChildText("block-index")),
-          readBTNode(blocks, Integer.parseInt(blocks.get(i).getChildText("block-index"))));
+          readBTNode(blocks.get(i), Integer.parseInt(blocks.get(i).getChildText("block-index"))));
     }
   }
 
-  public TreeMap<Integer, BTNode> getIndexToNodeMap() {
+  public TreeMap<Integer, Block> getIndexToNodeMap() {
     return indexToNodes;
   }
 
-  public HashMap<String, Integer> getTagToIndexMap() {
-    return tagToIndex;
-  }
-
-  private ArrayList<NodeData> extractNodes(Element block) {
-    Integer blockIndex = Integer.parseInt(block.getChildText("block-index"));
+  private ArrayList<Node> extractNodes(Element block, int index) {
     List<Element> nodes = block.getChildren("node");
-    ArrayList<NodeData> nodesArray = new ArrayList<NodeData>();
+    ArrayList<Node> nodesArray = new ArrayList<Node>();
 
     for (Element nodeInfo : nodes) {
-      Element tag = nodeInfo.getChild("tag"); // a tag
-      nodesArray.add(new NodeData(nodeInfo.getChildText("tag"), nodeInfo.getChildText("component"),
-          nodeInfo.getChildText("behaviour-type"), nodeInfo.getChildText("behaviour"), nodeInfo.getChildText("flag")));
-      tagToIndex.put(tag.getText(), blockIndex); // map tag to block index
+      nodesArray.add(new Node(Integer.parseInt(nodeInfo.getChildText("tag")),
+          nodeInfo.getChildText("component"), nodeInfo.getChildText("behaviour-type"),
+          nodeInfo.getChildText("behaviour"), nodeInfo.getChildText("flag"), index));
     }
     return nodesArray;
   }
@@ -71,9 +63,8 @@ public class BTModelReader {
     return childrenIndices;
   }
 
-  private BTNode readBTNode(List<Element> blocks, int index) {
-    Element block = blocks.get(index);
-    ArrayList<NodeData> nodes = extractNodes(block);
+  private Block readBTNode(Element block, int index) {
+    ArrayList<Node> nodes = extractNodes(block, index);
 
     String parentIndex = block.getChild("parent").getChildText("block-index");
     Integer parent = null;
@@ -83,6 +74,6 @@ public class BTModelReader {
 
     ArrayList<Integer> children = extractChildrenIndices(block);
     String branchType = block.getChildText("branch-type");
-    return new BTNode(parent, children, index, branchType, nodes);
+    return new Block(parent, children, index, branchType, nodes);
   }
 }

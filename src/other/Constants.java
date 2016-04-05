@@ -1,7 +1,8 @@
+package other;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class Constants {
+public final class Constants {
 
   public static final String version = "0.1";
 
@@ -15,6 +16,8 @@ public class Constants {
 
   public static final String tab5Name = "Join Test Cases";
   
+  public static final String htmlTabSpacing = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+  
   // 8 spaces
   public static final String tabSpacing = "        ";
 
@@ -26,5 +29,10 @@ public class Constants {
   
   public static final ArrayList<String> acceptedUABehaviourTypes =
       new ArrayList<String>(Arrays.asList("EXTERNAL-INPUT", "EVENT"));
-
+  
+  public static final ArrayList<String> nodeFlags = new ArrayList<String>(
+      Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISATION"));
+  
+  public static final ArrayList<String> nodeFlagSymbols = new ArrayList<String>(
+      Arrays.asList("^", "=>", "--", "="));
 }
