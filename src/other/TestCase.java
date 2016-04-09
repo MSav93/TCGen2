@@ -13,6 +13,8 @@ public class TestCase {
   private Node endNode;
   private ArrayList<Integer> blocksAway = new ArrayList<Integer>();
   private ArrayList<Node> nodesAway = new ArrayList<Node>();
+  private Boolean isSelected = false;
+  private Boolean isReachable = true;
 
   public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam) {
     this.blockList = new ArrayList<Integer>(blockListParam);
@@ -75,6 +77,22 @@ public class TestCase {
 
   public String toString() {
     return endNode + "" + blockList + "(" + getLength() + ")";
+  }
+
+  public Boolean isSelected() {
+    return isSelected;
+  }
+
+  public void setSelected(Boolean isSelected) {
+    this.isSelected = isSelected;
+  }
+
+  public Boolean isReachable() {
+    return isReachable;
+  }
+
+  public void setReachable(Boolean isReachable) {
+    this.isReachable = isReachable;
   }
 
 

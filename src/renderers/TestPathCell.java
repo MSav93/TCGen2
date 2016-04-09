@@ -5,12 +5,14 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 
 import javax.swing.AbstractCellEditor;
+import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
+import other.Constants;
 import other.TestCase;
 
 public class TestPathCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
@@ -23,16 +25,8 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
 
   public TestPathCell() {
     text = new JLabel();
-    // showButton = new JButton("View Articles");
-    // showButton.addActionListener(new ActionListener() {
-    // public void actionPerformed(ActionEvent arg0) {
-    // JOptionPane.showMessageDialog(null, "Reading " + path.name);
-    // }
-    // });
-
     panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     panel.add(text);
-    // panel.add(showButton);
     panel.setBackground(new Color(255, 77, 77));
   }
 
@@ -41,20 +35,18 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
 
     text.setText("<html><b>Start Node:</b> " + path.getStartNode() + "<br><b>TargetNode:</b> "
         + path.getEndNode() + "<br><b>Steps Involved:</b> " + path.getNodeLength() + "</html>");
-    Color bg = table.getSelectionBackground();
 
     if (isSelected) {
-      // if(path.completed) {
-      panel.setBackground(
-          new Color(Math.min(255, bg.getRed() + 100), bg.getGreen(), bg.getBlue(), bg.getAlpha()));
-      // } else {
-      // panel.setBackground(bg);
+      panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, Color.BLUE));
     } else {
-      // if(path.completed) {
-      // panel.setBackground(new Color(255, 77, 77);
-      // } else {
-      panel.setBackground(table.getBackground());
-      // }
+      panel.setBorder(table.getBorder());
+    }
+    if (path.isSelected()) {
+      panel.setBackground(Constants.cellChosenBG);
+    } else if (!path.isReachable()) {
+      panel.setBackground(Constants.cellUnavailableBG);
+    } else {
+      panel.setBackground(Constants.cellNotChosenBG);
     }
   }
 

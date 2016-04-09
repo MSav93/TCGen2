@@ -1,4 +1,6 @@
 package other;
+
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -6,33 +8,38 @@ public final class Constants {
 
   public static final String version = "0.1";
 
-  public static final String tab1Name = "Nodes of Interest";
+  public static final String noiTabName = "Nodes of Interest";
 
-  public static final String tab2Name = "CheckPoints";
+  public static final String cpTabName = "CheckPoints";
 
-  public static final String tab3Name = "Observable Responses";
+  public static final String observablesTabName = "Observable Responses";
 
-  public static final String tab4Name = "User Actions/External Inputs";
+  public static final String userActionsTabName = "User Actions/External Inputs";
 
-  public static final String tab5Name = "Join Test Cases";
-  
+  public static final String joiningTabName = "Join Test Cases";
+
   public static final String htmlTabSpacing = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-  
+
+  public static final int timeout = 5000;
+
+  public static final Color cellChosenBG = new Color(100, 215, 115);
+
+  public static final Color cellNotChosenBG = new Color(255, 255, 255);
+
+  public static final Color cellUnavailableBG = new Color(100, 215, 115);
+
   // 8 spaces
   public static final String tabSpacing = "        ";
 
-  public static final ArrayList<String> unacceptedObsBehaviourTypes = new ArrayList<String>(
-      Arrays.asList("EXTERNAL-INPUT", "EVENT", "EXTERNAL-OUTPUT", "SELECTION", "GUARD"));
+  public static final ArrayList<String> acceptedORBehaviourTypes = new ArrayList<String>(
+      Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
 
-  public static final ArrayList<String> unnaceptedObsFlags =
-      new ArrayList<String>(Arrays.asList("REVERSION", "REFERENCE"));
-  
   public static final ArrayList<String> acceptedUABehaviourTypes =
       new ArrayList<String>(Arrays.asList("EXTERNAL-INPUT", "EVENT"));
-  
-  public static final ArrayList<String> nodeFlags = new ArrayList<String>(
-      Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISATION"));
-  
-  public static final ArrayList<String> nodeFlagSymbols = new ArrayList<String>(
-      Arrays.asList("^", "=>", "--", "="));
+
+  public static final ArrayList<String> nodeFlags =
+      new ArrayList<String>(Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISATION"));
+
+  public static final ArrayList<String> nodeFlagSymbols =
+      new ArrayList<String>(Arrays.asList("^", "=>", "--", "="));
 }

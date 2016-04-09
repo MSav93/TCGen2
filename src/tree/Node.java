@@ -9,6 +9,8 @@ public class Node implements Comparable<Node> {
   private String behaviour;
   private String flag;
   private Integer blockIndex;
+  private Boolean noi = false;
+  private Boolean cp = false;
 
 
   public Node(Integer tagParam, String componentParam, String behaviourTypeParam,
@@ -47,6 +49,22 @@ public class Node implements Comparable<Node> {
   
   public Integer getBlockIndex() {
     return blockIndex;
+  }
+
+  public Boolean isNoi() {
+    return noi;
+  }
+
+  public void setNoi(Boolean noi) {
+    this.noi = noi;
+  }
+
+  public Boolean isCp() {
+    return cp;
+  }
+
+  public void setCp(Boolean cp) {
+    this.cp = cp;
   }
 
   public String toString() {

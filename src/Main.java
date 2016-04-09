@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,10 +44,12 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.TableRowSorter;
 
 import org.jdom2.Attribute;
 import org.jdom2.Document;
@@ -60,10 +63,8 @@ import com.SBCLPipe;
 
 import other.Constants;
 import other.TestCase;
-import renderers.BehaviourCmbRenderer;
 import renderers.CPCell;
 import renderers.CPModel;
-import renderers.ComponentCmbRenderer;
 import renderers.NOICell;
 import renderers.NOIModel;
 import renderers.TestPathModel;
@@ -90,13 +91,12 @@ public class Main extends JFrame {
    */
   private JTabbedPane tabbedPane;
   private JButton btnGenerateTestCases;
-  private JButton btnGenerateExcel;
+  private JButton btnSpare;
 
   /**
    * Components on Nodes Of Interest tab
    */
   private JTable tblNOI;
-  private final TextArea taNOI = new TextArea();
 
 
   /**
@@ -104,7 +104,6 @@ public class Main extends JFrame {
    */
   private JTable tblCP;
   private JComboBox<Node> cmbInitialState = new JComboBox<Node>();
-  private final TextArea taCP = new TextArea();
 
   /**
    * Components on Observations tab
@@ -181,7 +180,17 @@ public class Main extends JFrame {
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() {
         try {
-          Runtime.getRuntime().exec("taskkill /F /IM sbcl.exe");
+          if (System.getProperty("os.name").startsWith("Windows")) {
+            Runtime.getRuntime().exec("taskkill /F /IM sbcl.exe");
+          } else if (System.getProperty("os.name").startsWith("Mac")) {
+            Runtime.getRuntime().exec(new String[] {"osascript", "-e",
+                "do shell script \"./shutdown.sh &>/dev/null &\" with administrator privileges"});
+          } else {
+            /*
+             * Assume it is a unix system with gksudo available.
+             */
+            Runtime.getRuntime().exec(new String[] {"bash", "-c", "gksudo ./shutdown.sh"});
+          }
         } catch (IOException e) {
           printErrorMessage("error|3|");
         }
@@ -209,7 +218,6 @@ public class Main extends JFrame {
 
     tblCP.setModel(new CPModel(null));
     cmbInitialState.removeAllItems();
-    taCP.setText("");
     chosenCPs = new TreeSet<Node>();
 
     cmbORComponent.removeAllItems();
@@ -230,7 +238,6 @@ public class Main extends JFrame {
 
     btFilePath = "";
 
-    updateCPTA();
     updateOTA();
     updateUATA();
   }
@@ -283,9 +290,6 @@ public class Main extends JFrame {
 
   private void readConfig(String configXML) {
     org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
-
-    // XML parser has problem reading ||&
-    configXML = configXML.replace("||&", "");
 
     org.jdom2.Document doc = null;
     try {
@@ -360,11 +364,6 @@ public class Main extends JFrame {
             initialCp.getAttributeValue("behaviour"), initialCp.getAttributeValue("flag"), null);
         updateCPInitial();
         for (int i = 0; i < cmbInitialState.getItemCount(); i++) {
-          System.out.println("Component: (" + cmbInitialState.getItemAt(i).getComponent() + "|" + initial.getComponent() + ")");
-          System.out.println("getBehaviour: (" + cmbInitialState.getItemAt(i).getBehaviour() + "|" + initial.getBehaviour() + ")");
-          System.out.println("getBehaviourType: (" + cmbInitialState.getItemAt(i).getBehaviourType() + "|" + initial.getBehaviourType() + ")");
-          System.out.println("getFlag: (" + cmbInitialState.getItemAt(i).getFlag() + "|" + initial.getFlag() + ")");
-          System.out.println("getTag: (" + cmbInitialState.getItemAt(i).getTag() + "|" + initial.getTag() + ")");
           if (initial.equals(cmbInitialState.getItemAt(i))) {
             initialCp = null;
             cmbInitialState.setSelectedItem(cmbInitialState.getItemAt(i));
@@ -535,19 +534,18 @@ public class Main extends JFrame {
     // load nodes NOI table
     populateNodeMaps();
 
-    updateTblCP();
+    populateTblCP();
     updateORCmbBoxes();
     updateUACmbBoxes();
 
-    updateCPTA();
     updateOTA();
     updateUATA();
 
     btnGenerateTestCases.setEnabled(true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab1Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab2Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab3Name), true);
-    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab4Name), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.noiTabName), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.cpTabName), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.observablesTabName), true);
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.userActionsTabName), true);
   }
 
   private void populateNodeMaps() {
@@ -557,10 +555,9 @@ public class Main extends JFrame {
         if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
           userActions.put(node, new String[] {"", ""});
         }
-        if (!Constants.unacceptedObsBehaviourTypes.contains(node.getBehaviourType())) {
+        if (Constants.acceptedORBehaviourTypes.contains(node.getBehaviourType())) {
           observableResponses.put(node, "");
         }
-        // tagToNodeDataMap.put(node.getTag(), node);
         if (!compToBehaviourMap.containsKey(node.getComponent())) {
           compToBehaviourMap.put(node.getComponent(), new ArrayList<Node>());
         }
@@ -572,7 +569,6 @@ public class Main extends JFrame {
   }
 
   private void updateDisplay() {
-    updateNOITA();
     updateCPTab();
     updateORTab();
     updateUATab();
@@ -671,27 +667,26 @@ public class Main extends JFrame {
     }
   }
 
-  /**
-   * Write label that shows configured CP nodes.
-   */
-  private void updateNOITA() {
-    taNOI.setText("");
-    for (Node node : chosenNOIs) {
-      if (taNOI.getText().equals("")) {
-        taNOI.setText(taNOI.getText() + node);
-      } else {
-        taNOI.setText(taNOI.getText() + ", \n" + node);
+  private void updateCPTab() {
+    TreeSet<Node> potentialCP = new TreeSet<Node>();
+    for (int key : indexToNodesMap.keySet()) {
+      for (Node node : indexToNodesMap.get(key).getNodes()) {
+        for (Node selectedCP : chosenCPs) {
+          if (node.getComponent().equals(selectedCP.getComponent())
+              && node.getBehaviour().equals(selectedCP.getBehaviour())) {
+            if (node.getBehaviourType().equals("STATE-REALISATION")) {
+              potentialCP.add(node);
+            }
+          }
+        }
       }
     }
-    taNOI.setText(taNOI.getText().replaceAll(";", ": "));
+    cmbInitialState.setModel(new DefaultComboBoxModel<Node>(potentialCP.toArray(new Node[] {})));
+    cmbInitialState.setSelectedIndex(-1);
+    initialNode = null;
   }
 
-  private void updateCPTab() {
-    updateTblCP();
-    updateCPTA();
-  }
-
-  private void updateTblCP() {
+  private void populateTblCP() {
     Set<Node> cps = new TreeSet<Node>();
     for (int key : indexToNodesMap.keySet()) {
       for (Node node : indexToNodesMap.get(key).getNodes()) {
@@ -725,21 +720,6 @@ public class Main extends JFrame {
     initialNode = null;
   }
 
-  /**
-   * Write label that shows configured CP nodes.
-   */
-  private void updateCPTA() {
-    taCP.setText("");
-    for (Node cp : chosenCPs) {
-      if (taCP.getText().equals("")) {
-        taCP.setText(taCP.getText() + cp);
-      } else {
-        taCP.setText(taCP.getText() + ", \n" + cp);
-      }
-    }
-    taCP.setText(taCP.getText().replaceAll(";", ": "));
-  }
-
   private void updateORTab() {
     updateORCmbBoxes();
     updateOTA();
@@ -750,7 +730,6 @@ public class Main extends JFrame {
     Set<String> obsComp = new TreeSet<String>();
     Set<Node> obsCompToDisplay = new TreeSet<Node>();
     for (Node n : observableResponses.keySet()) {
-      System.out.println(n);
       if (!obsComp.contains(n.getComponent())) {
         obsComp.add(n.getComponent());
         obsCompToDisplay.add(n);
@@ -897,8 +876,6 @@ public class Main extends JFrame {
   private void populateTPTab(ArrayList<ArrayList<Integer>> rawTestCases) {
     for (int i = 0; i < rawTestCases.size(); i++) {
       ArrayList<Integer> testCase = rawTestCases.get(i);
-
-
       testCases.add(constructTestCase(testCase));
     }
     tblTP.setModel(new TestPathSelectorModel(testCases));
@@ -1093,11 +1070,11 @@ public class Main extends JFrame {
     tabbedPane.setBounds(10, 131, 1131, 660);
     contentPane.add(tabbedPane);
 
-    tabbedPane.addTab(Constants.tab1Name, null, createNOITab(), null);
-    tabbedPane.addTab(Constants.tab2Name, null, createCPTab(), null);
-    tabbedPane.addTab(Constants.tab3Name, null, createOATab(), null);
-    tabbedPane.addTab(Constants.tab4Name, null, createUATab(), null);
-    tabbedPane.addTab(Constants.tab5Name, null, createTPTab(), null);
+    tabbedPane.addTab(Constants.cpTabName, null, createCPTab(), null);
+    tabbedPane.addTab(Constants.observablesTabName, null, createOATab(), null);
+    tabbedPane.addTab(Constants.userActionsTabName, null, createUATab(), null);
+    tabbedPane.addTab(Constants.noiTabName, null, createNOITab(), null);
+    tabbedPane.addTab(Constants.joiningTabName, null, createTPTab(), null);
 
     for (int i = 0; i < tabbedPane.getTabCount(); i++) {
       tabbedPane.setEnabledAt(i, false);
@@ -1217,34 +1194,42 @@ public class Main extends JFrame {
 
   private void createMainButtons(JPanel panelMain) {
 
-    btnGenerateExcel = new JButton("Generate Excel Output");
-    btnGenerateExcel.setEnabled(false);
-    btnGenerateExcel.setBounds(425, 59, 281, 51);
-    btnGenerateExcel.setEnabled(false);
+    btnSpare = new JButton("Spare Button (Does Nothing)");
+    btnSpare.setEnabled(false);
+    btnSpare.setBounds(425, 59, 281, 51);
+    btnSpare.setEnabled(false);
     /**
      * Generate natural language test cases in Excel format.
      */
-    btnGenerateExcel.addActionListener(new ActionListener() {
+    btnSpare.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        // TODO Output to Excel
+        // TODO Put stuff here
       }
     });
-    contentPane.add(btnGenerateExcel);
+    contentPane.add(btnSpare);
 
     btnGenerateTestCases = new JButton("Generate Test Cases");
     btnGenerateTestCases.setEnabled(false);
     btnGenerateTestCases.setBounds(72, 59, 281, 51);
     /**
-     * Call API and generate TCPs, pre-amble and post-amble.
+     * Call API and generate TCPs
      */
     btnGenerateTestCases.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         ArrayList<String> commands = creatTestCaseGenCommands();
-        ArrayList<ArrayList<Integer>> testCases = sendTestCaseGenCommands(commands);
-        populateTPTab(testCases);
-        tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.tab5Name), true);
+        if (commands.size() > 0) {
+          ArrayList<ArrayList<Integer>> testCases = sendTestCaseGenCommands(commands);
+          if (testCases.size() > 0) {
+            populateTPTab(testCases);
+            tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.joiningTabName), true);
+          } else {
+            JOptionPane.showMessageDialog(null, "No test cases generated.");
+          }
+        } else {
+          JOptionPane.showMessageDialog(null,
+              "Invalid config. Make sure you have selected some checkpoints.");
+        }
       }
-
     });
     contentPane.setLayout(null);
     contentPane.add(panelMain);
@@ -1260,102 +1245,35 @@ public class Main extends JFrame {
     contentPane.add(btnOpenTestCase);
   }
 
-  private JPanel createNOITab() {
-    JPanel panelNOI = new JPanel();
-
-    panelNOI.setLayout(null);
-    JLabel lblSelectNodes = new JLabel("Select nodes of interest:");
-    lblSelectNodes.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblSelectNodes.setBounds(30, 20, 191, 22);
-    panelNOI.add(lblSelectNodes);
-
-    JScrollPane scrollPane = new JScrollPane();
-    scrollPane.setViewportBorder(null);
-    scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-    scrollPane.setBounds(30, 45, 629, 455);
-    panelNOI.add(scrollPane);
-
-    tblNOI = new JTable(new NOIModel(null));
-    tblNOI.setDefaultRenderer(Node.class, new NOICell());
-    tblNOI.setDefaultEditor(Node.class, new NOICell());
-    tblNOI.setRowHeight(40);
-    tblNOI.setBorder(null);
-    scrollPane.setViewportView(tblNOI);
-    tblNOI.setFillsViewportHeight(true);
-    tblNOI.setCellSelectionEnabled(true);
-    tblNOI.setTableHeader(null);
-
-    JButton btnRemoveNOI = new JButton("Remove NOI");
-    btnRemoveNOI.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent e) {
-        for (int i : tblNOI.getSelectedRows()) {
-          chosenNOIs.remove((Node) tblNOI.getValueAt(i, 0));
-        }
-        updateNOITA();
-      }
-    });
-    btnRemoveNOI.setBounds(161, 526, 151, 61);
-    panelNOI.add(btnRemoveNOI);
-
-    JButton btnAddNOI = new JButton("Add NOI");
-    btnAddNOI.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        for (int i : tblNOI.getSelectedRows()) {
-          chosenNOIs.add((Node) tblNOI.getValueAt(i, 0));
-        }
-        updateNOITA();
-      }
-    });
-    btnAddNOI.setBounds(381, 526, 151, 61);
-    panelNOI.add(btnAddNOI);
-
-    taNOI.setEditable(false);
-    taNOI.setBounds(740, 45, 345, 580);
-    panelNOI.add(taNOI);
-
-    JLabel lblSelectedNOI = new JLabel("Selected nodes:");
-    lblSelectedNOI.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblSelectedNOI.setBounds(740, 25, 236, 22);
-    panelNOI.add(lblSelectedNOI);
-
-    return panelNOI;
-  }
-
   private JPanel createCPTab() {
     JPanel panelCP = new JPanel();
 
     panelCP.setLayout(null);
 
     JLabel lblCPNote1 = new JLabel("Note: Selection restricted to state realisation nodes");
-    lblCPNote1.setBounds(410, 30, 247, 14);
+    lblCPNote1.setHorizontalAlignment(SwingConstants.RIGHT);
+    lblCPNote1.setBounds(561, 18, 555, 14);
     panelCP.add(lblCPNote1);
 
-    JLabel lblSelectedCP = new JLabel("Selected checkpoints:");
-    lblSelectedCP.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblSelectedCP.setBounds(740, 20, 236, 22);
-    panelCP.add(lblSelectedCP);
-    taCP.setEditable(false);
-
-    taCP.setBounds(740, 45, 345, 580);
-    panelCP.add(taCP);
-    cmbInitialState.setBounds(252, 546, 376, 32);
+    cmbInitialState.setBounds(497, 556, 376, 32);
     panelCP.add(cmbInitialState);
 
     JLabel lblCPNote2 =
         new JLabel("Note: Selection restricted to CheckPoints which you have chosen.");
-    lblCPNote2.setBounds(158, 608, 361, 14);
+    lblCPNote2.setHorizontalAlignment(SwingConstants.CENTER);
+    lblCPNote2.setBounds(0, 608, 1126, 14);
     panelCP.add(lblCPNote2);
 
     JLabel lblInitialState = new JLabel("Select Initial State of the System:");
-    lblInitialState.setBounds(81, 555, 161, 14);
+    lblInitialState.setHorizontalAlignment(SwingConstants.RIGHT);
+    lblInitialState.setBounds(0, 565, 477, 14);
     panelCP.add(lblInitialState);
 
     JScrollPane scrollPane = new JScrollPane();
     scrollPane.setViewportBorder(null);
     scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-    scrollPane.setBounds(30, 45, 630, 410);
+    scrollPane.setBounds(10, 33, 1100, 424);
     panelCP.add(scrollPane);
-
     tblCP = new JTable(new CPModel(null));
     tblCP.setDefaultRenderer(Node.class, new CPCell());
     tblCP.setDefaultEditor(Node.class, new CPCell());
@@ -1365,18 +1283,18 @@ public class Main extends JFrame {
     tblCP.setFillsViewportHeight(true);
     tblCP.setCellSelectionEnabled(true);
     tblCP.setTableHeader(null);
-
     JButton btnRemoveCP = new JButton("Remove CP");
     btnRemoveCP.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         for (int i : tblCP.getSelectedRows()) {
           chosenCPs.remove((Node) tblCP.getValueAt(i, 0));
+          ((Node) tblCP.getValueAt(i, 0)).setCp(false);
+          tblCP.repaint();
         }
-        updateCPTA();
         updateCPInitial();
       }
     });
-    btnRemoveCP.setBounds(158, 468, 151, 61);
+    btnRemoveCP.setBounds(242, 468, 200, 60);
     panelCP.add(btnRemoveCP);
 
     JButton btnAddCP = new JButton("Add CP");
@@ -1384,18 +1302,20 @@ public class Main extends JFrame {
       public void actionPerformed(ActionEvent arg0) {
         for (int i : tblCP.getSelectedRows()) {
           chosenCPs.add((Node) tblCP.getValueAt(i, 0));
+          ((Node) tblCP.getValueAt(i, 0)).setCp(true);
+          tblCP.repaint();
         }
-        updateCPTA();
         updateCPInitial();
       }
     });
-    btnAddCP.setBounds(378, 468, 151, 61);
+    btnAddCP.setBounds(684, 468, 200, 60);
     panelCP.add(btnAddCP);
 
     JLabel lblSelectCheckpoints = new JLabel("Select checkpoints:");
     lblSelectCheckpoints.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblSelectCheckpoints.setBounds(30, 20, 191, 22);
+    lblSelectCheckpoints.setBounds(10, 11, 393, 22);
     panelCP.add(lblSelectCheckpoints);
+
     cmbInitialState.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         if (cmbInitialState.getSelectedItem() != null) {
@@ -1416,16 +1336,17 @@ public class Main extends JFrame {
     panelOA.add(lblORComponent);
 
     cmbORComponent.setBounds(460, 30, 310, 30);
-     cmbORComponent.setRenderer(new ComponentCmbRenderer());
+    // cmbORComponent.setRenderer(new ComponentCmbRenderer());
     panelOA.add(cmbORComponent);
 
     cmbORBehaviour.setBounds(460, 75, 310, 30);
-     cmbORBehaviour.setRenderer(new BehaviourCmbRenderer());
+    // cmbORBehaviour.setRenderer(new BehaviourCmbRenderer());
     panelOA.add(cmbORBehaviour);
 
     JLabel lblORBehaviour = new JLabel("Select Behaviour:");
     lblORBehaviour.setBounds(368, 83, 84, 14);
     panelOA.add(lblORBehaviour);
+    taORInput.setWrapStyleWord(true);
     taORInput.setLineWrap(true);
 
     taORInput.addKeyListener(new KeyAdapter() {
@@ -1467,7 +1388,7 @@ public class Main extends JFrame {
     panelOA.add(lblORInput);
 
     JLabel lblNoteSelectionRestricted_1 = new JLabel(
-        "Note: Selection restricted to all components except events, external inputs, selections & guards.");
+        "Note: Selection restricted to State-Realisations, External-Output, Internal-Output");
     lblNoteSelectionRestricted_1.setBounds(331, 127, 464, 14);
     panelOA.add(lblNoteSelectionRestricted_1);
 
@@ -1498,11 +1419,11 @@ public class Main extends JFrame {
     panelUA.add(lblUABehaviour);
 
     cmbUABehaviour.setBounds(460, 75, 310, 30);
-     cmbUABehaviour.setRenderer(new BehaviourCmbRenderer());
+    // cmbUABehaviour.setRenderer(new BehaviourCmbRenderer());
     panelUA.add(cmbUABehaviour);
 
     cmbUAComponent.setBounds(460, 30, 310, 30);
-     cmbUAComponent.setRenderer(new ComponentCmbRenderer());
+    // cmbUAComponent.setRenderer(new ComponentCmbRenderer());
     panelUA.add(cmbUAComponent);
 
 
@@ -1510,6 +1431,7 @@ public class Main extends JFrame {
     lblUAinput.setFont(new Font("Tahoma", Font.PLAIN, 18));
     lblUAinput.setBounds(10, 172, 151, 22);
     panelUA.add(lblUAinput);
+    taUAInput.setWrapStyleWord(true);
     taUAInput.setLineWrap(true);
 
     taUAInput.addKeyListener(new KeyAdapter() {
@@ -1583,31 +1505,93 @@ public class Main extends JFrame {
     return panelUA;
   }
 
+  private JPanel createNOITab() {
+    JPanel panelNOI = new JPanel();
+
+    panelNOI.setLayout(null);
+    JLabel lblSelectNodes = new JLabel("Select nodes of interest:");
+    lblSelectNodes.setFont(new Font("Tahoma", Font.PLAIN, 18));
+    lblSelectNodes.setBounds(10, 11, 191, 22);
+    panelNOI.add(lblSelectNodes);
+
+    JScrollPane scrollPane = new JScrollPane();
+    scrollPane.setViewportBorder(null);
+    scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+    scrollPane.setBounds(10, 32, 1106, 499);
+    panelNOI.add(scrollPane);
+
+    tblNOI = new JTable(new NOIModel(null));
+    tblNOI.setDefaultRenderer(Node.class, new NOICell());
+    tblNOI.setDefaultEditor(Node.class, new NOICell());
+    tblNOI.setRowHeight(40);
+    tblNOI.setBorder(null);
+    scrollPane.setViewportView(tblNOI);
+    tblNOI.setFillsViewportHeight(true);
+    tblNOI.setCellSelectionEnabled(true);
+    tblNOI.setTableHeader(null);
+
+    JButton btnRemoveNOI = new JButton("Remove NOI");
+    btnRemoveNOI.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        for (int i : tblNOI.getSelectedRows()) {
+          chosenNOIs.remove((Node) tblNOI.getValueAt(i, 0));
+          ((Node) tblNOI.getValueAt(i, 0)).setNoi(false);
+          tblNOI.repaint();
+        }
+      }
+    });
+    btnRemoveNOI.setBounds(242, 542, 200, 60);
+    panelNOI.add(btnRemoveNOI);
+
+    JButton btnAddNOI = new JButton("Add NOI");
+    btnAddNOI.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent arg0) {
+        for (int i : tblNOI.getSelectedRows()) {
+          chosenNOIs.add((Node) tblNOI.getValueAt(i, 0));
+          ((Node) tblNOI.getValueAt(i, 0)).setNoi(true);
+          tblNOI.repaint();
+        }
+      }
+    });
+    btnAddNOI.setBounds(684, 542, 200, 60);
+    panelNOI.add(btnAddNOI);
+
+    return panelNOI;
+  }
+
   private JPanel createTPTab() {
     JPanel panelTP = new JPanel();
 
     panelTP.setLayout(null);
-    
+
     JScrollPane scrollPane = new JScrollPane();
     scrollPane.setBounds(10, 33, 340, 507);
     panelTP.add(scrollPane);
-    
-        tblTP = new JTable(new TestPathSelectorModel(null));
-        scrollPane.setViewportView(tblTP);
-        tblTP.setDefaultRenderer(TestCase.class, new TestPathSelectorCell());
-        tblTP.setDefaultEditor(TestCase.class, new TestPathSelectorCell());
+
+    tblTP = new JTable(new TestPathSelectorModel(null));
+    scrollPane.setViewportView(tblTP);
+    tblTP.setDefaultRenderer(TestCase.class, new TestPathSelectorCell());
+    tblTP.setDefaultEditor(TestCase.class, new TestPathSelectorCell());
     tblTP.setRowHeight(60);
-    
+
     JScrollPane scrollPane_1 = new JScrollPane();
     scrollPane_1.setBounds(360, 33, 756, 507);
     panelTP.add(scrollPane_1);
-    
-        tblFinal = new JTable();
-        scrollPane_1.setViewportView(tblFinal);
-        tblFinal.setModel(new TestPathModel(null));
-        tblFinal.getColumnModel().getColumn(0).setResizable(false);
-        tblFinal.getColumnModel().getColumn(1).setResizable(false);
-        tblFinal.getColumnModel().getColumn(2).setResizable(false);
+
+    tblFinal = new JTable();
+    scrollPane_1.setViewportView(tblFinal);
+    tblFinal.setModel(new TestPathModel(null));
+    TableRowSorter<TestPathModel> sorter =
+        new TableRowSorter<TestPathModel>((TestPathModel) tblFinal.getModel());
+    sorter.setComparator(0, new Comparator<TestCase>() {
+      public int compare(TestCase tc1, TestCase tc2) {
+        return tc1.getBlocksAwayLength() - tc2.getBlocksAwayLength();
+      }
+    });
+    tblFinal.setRowSorter(sorter);
+    tblFinal.getColumnModel().getColumn(0).setResizable(false);
+    tblFinal.getColumnModel().getColumn(1).setResizable(false);
+    tblFinal.getColumnModel().getColumn(2).setResizable(false);
 
     JLabel lblGeneratedTestCases = new JLabel("Generated Test Cases:");
     lblGeneratedTestCases.setFont(new Font("Tahoma", Font.PLAIN, 18));
@@ -1676,8 +1660,10 @@ public class Main extends JFrame {
         for (int k : noiBlocks) {
           sb.append(k + " ");
         }
-        // Remove final space added
-        sb.setLength(sb.length() - 1);
+        if (noiBlocks.size() > 0) {
+          // Remove final space added
+          sb.setLength(sb.length() - 1);
+        }
         sb.append(") " + j + " (");
         for (int k : endingBlocks) {
           sb.append(k + " ");
@@ -1696,13 +1682,9 @@ public class Main extends JFrame {
     ArrayList<ArrayList<Integer>> testCases = new ArrayList<ArrayList<Integer>>();
     for (String command : commands) {
       String result = sbcl.sendCommand(command);
-      System.out.println(result);
       if (result
           .matches("<result><path>(<block-index>\\d+<\\/block-index>)+<\\/path><\\/result>")) {
         org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
-
-        // XML parser has problem reading ||&
-        result = result.replace("||&", "");
 
         org.jdom2.Document doc = null;
         try {
@@ -1718,10 +1700,10 @@ public class Main extends JFrame {
           pathList.add(Integer.parseInt(block.getValue()));
         }
         testCases.add(pathList);
+      } else if (result.matches("error\\|\\d+\\|")) {
+        printErrorMessage(result);
+        break;
       }
-    }
-    for (ArrayList<Integer> list : testCases) {
-      System.out.println(list);
     }
     return testCases;
   }

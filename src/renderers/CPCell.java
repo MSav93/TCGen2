@@ -6,12 +6,14 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 
 import javax.swing.AbstractCellEditor;
+import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
+import other.Constants;
 import tree.Node;
 
 public class CPCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
@@ -27,20 +29,23 @@ public class CPCell extends AbstractCellEditor implements TableCellEditor, Table
 
     panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     panel.add(text);
-    panel.setBackground(new Color(255, 77, 77));
   }
 
   private void updateData(Node cp, boolean isSelected, JTable table) {
     this.cp = cp;
+    if (cp != null) {
 
-    text.setText(cp.toString());
-    Color bg = table.getSelectionBackground();
-
-    if (isSelected) {
-      panel.setBackground(
-          new Color(Math.min(255, bg.getRed() + 100), bg.getGreen(), bg.getBlue(), bg.getAlpha()));
-    } else {
-      panel.setBackground(table.getBackground());
+      text.setText(cp.toString());
+      if (isSelected) {
+        panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, Color.BLUE));
+      } else {
+        panel.setBorder(table.getBorder());
+      }
+      if (cp.isCp()) {
+        panel.setBackground(Constants.cellChosenBG);
+      } else {
+        panel.setBackground(Constants.cellNotChosenBG);
+      }
     }
   }
 

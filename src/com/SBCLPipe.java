@@ -7,6 +7,8 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import other.Constants;
+
 public class SBCLPipe {
 
   private String os = "";
@@ -14,9 +16,12 @@ public class SBCLPipe {
   public SBCLPipe() {
     if (System.getProperty("os.name").startsWith("Windows")) {
       os = "Windows";
+    } else if (System.getProperty("os.name").startsWith("Mac")) {
+      // Mac differ a bit from other unix (there is no gksudo in Mac)
+      // osascript is used by Mac instead of gksudo
+      os = "Mac";
     } else {
-      // Mac and Linux use same terminal cmds
-      //TODO commands for mac/linux are currently untested
+      // TODO commands for mac/linux are currently untested
       os = "Linux";
     }
   }
@@ -32,57 +37,67 @@ public class SBCLPipe {
     Boolean end = false;
     long start = System.currentTimeMillis();
     try {
-      while (!input.ready()) {
+      while (System.currentTimeMillis() - start <= Constants.timeout) {
+        if (input.ready()) {
+          result = result.concat(input.readLine());
+          end = result.contains("</result>");
+        }
+        if (end) {
+          return result;
+        }
       }
-      while (end == false) {
-        result = result.concat(input.readLine());
-        end = result.contains("</result>");
-      }
-      if (System.currentTimeMillis() - start > 5000) {
+      if (!end) {
         return "error|5|";
       }
-      return result;
     } catch (IOException e) {
       e.printStackTrace();
     }
-    return "error|2|";
+    return "error|5|";
   }
 
   public String connect(String address, int port) throws InterruptedException, IOException {
     if (client == null || client.isClosed()) {
       System.out.println("starting server");
       startServer();
-      Thread.sleep(2000);
+      if (os == "Windows") {
+        Thread.sleep(2000);
+      } else {
+        // Allow time for user to enter password
+        Thread.sleep(10000);
+      }
       System.out.println("connecting");
       return connectIOBuffers(address, port);
     } else {
-      System.out.println("killing existing server");
-      killServer();
-      Thread.sleep(2000);
-      System.out.println("starting new server");
-      startServer();
-      Thread.sleep(2000);
-      System.out.println("connecting");
-      return connectIOBuffers(address, port);
+      return "success";
     }
   }
 
-  private void startServer() throws IOException {
+  protected void startServer() throws IOException {
     if (os == "Windows") {
       Runtime.getRuntime().exec(
           "cmd /c start /b cmd.exe /K \"cd BTAnalyser && sbcl --dynamic-space-size 4096 --load \"start.lisp\"");
-    } else if (os == "Mac/Linux") {
-      Runtime.getRuntime().exec(new String[] {"bash", "-c",
-          "cd BTAnalyser; sudo sbcl --dynamic-space-size 4096 --load \"start.lisp\""});
+    } else if (os == "Mac") {
+      Runtime.getRuntime().exec(new String[] {"osascript", "-e",
+          "do shell script \"./start.sh &>/dev/null &\" with administrator privileges"});
+    } else {
+      /*
+       * Assume it is a unix system with gksudo available.
+       */
+      Runtime.getRuntime().exec(new String[] {"bash", "-c", "gksudo ./start.sh"});
     }
   }
 
-  private void killServer() throws IOException {
-    if (os == "Windows") {
-      Runtime.getRuntime().exec("taskkill /F /T /IM sbcl.exe");
-    } else if (os == "Linux") {
-      Runtime.getRuntime().exec(new String[] {"bash", "-c",
-          "kill -9 $(ps | grep sbcl | sed s/grep sbcl'// | grep sbcl | sed 's/\\([0-9][0-9]*\\).*/\\1/')"});
+  protected void killServer() throws IOException {
+    if (System.getProperty("os.name").startsWith("Windows")) {
+      Runtime.getRuntime().exec("taskkill /F /IM sbcl.exe");
+    } else if (System.getProperty("os.name").startsWith("Mac")) {
+      Runtime.getRuntime().exec(new String[] {"osascript", "-e",
+          "do shell script \"./shutdown.sh &>/dev/null &\" with administrator privileges"});
+    } else {
+      /*
+       * Assume it is a unix system with gksudo available.
+       */
+      Runtime.getRuntime().exec(new String[] {"bash", "-c", "gksudo ./shutdown.sh"});
     }
   }
 

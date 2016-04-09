@@ -44,7 +44,6 @@ public class Block {
   @Override
   public String toString() {
     String retVal = "(" + index + "," + nodes + ", ";
-    System.out.println(index + ", " + children);
     for(Integer child : children) {
       retVal = retVal.concat(child + ",");
     }
