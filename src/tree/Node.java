@@ -11,6 +11,9 @@ public class Node implements Comparable<Node> {
   private Integer blockIndex;
   private Boolean noi = false;
   private Boolean cp = false;
+  private String action = "";
+  private Boolean preamble = false;
+  private String observable = "";
 
 
   public Node(Integer tagParam, String componentParam, String behaviourTypeParam,
@@ -46,7 +49,7 @@ public class Node implements Comparable<Node> {
   public String getFlag() {
     return flag;
   }
-  
+
   public Integer getBlockIndex() {
     return blockIndex;
   }
@@ -131,5 +134,29 @@ public class Node implements Comparable<Node> {
       result = getBehaviourType().equals(otherNode.getBehaviourType());
     }
     return result;
+  }
+
+  public String getAction() {
+    return action;
+  }
+
+  public void setAction(String action) {
+    this.action = action;
+  }
+
+  public String getObservable() {
+    return observable;
+  }
+
+  public void setObservable(String observable) {
+    this.observable = observable;
+  }
+
+  public Boolean getPreamble() {
+    return preamble;
+  }
+
+  public void setPreamble(Boolean preamble) {
+    this.preamble = preamble;
   }
 }

@@ -7,13 +7,13 @@ import javax.swing.table.TableCellRenderer;
 import other.Constants;
 import tree.Node;
 
-public class CPCell extends NodeTableCell implements TableCellEditor, TableCellRenderer {
-  private static final long serialVersionUID = 7053396305268198391L;
+public class ORCell extends NodeTableCell implements TableCellEditor, TableCellRenderer {
+  private static final long serialVersionUID = 8786460640811709303L;
 
   @Override
   protected void updateData(Node node, boolean isSelected, JTable table) {
     super.updateData(node, isSelected, table);
-    if (node.isCp()) {
+    if (!node.getObservable().equals("")) {
       panel.setBackground(Constants.cellChosenBG);
     } else {
       panel.setBackground(Constants.cellNotChosenBG);

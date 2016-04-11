@@ -1,22 +1,22 @@
 package renderers;
 
-import java.util.List;
+import java.util.Collection;
 
 import javax.swing.table.AbstractTableModel;
 
-import other.TestCase;
+import tree.Node;
 
-public class TestPathSelectorModel extends AbstractTableModel {
+public class NodeTableModel extends AbstractTableModel {
   private static final long serialVersionUID = -7480665278104499754L;
-  List<TestCase> paths;
+  Collection<Node> nodes;
 
-  public TestPathSelectorModel(List<TestCase> paths) {
-    this.paths = paths;
+  public NodeTableModel(Collection<Node> cps) {
+    this.nodes = cps;
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
-    return TestCase.class;
+    return Node.class;
   }
 
   public int getColumnCount() {
@@ -24,18 +24,18 @@ public class TestPathSelectorModel extends AbstractTableModel {
   }
 
   public String getColumnName(int columnIndex) {
-    return "Feed";
+    return "Nodes";
   }
 
   public int getRowCount() {
-    return (paths == null) ? 0 : paths.size();
+    return (nodes == null) ? 0 : nodes.size();
   }
 
   public Object getValueAt(int rowIndex, int columnIndex) {
-    return (paths == null) ? null : paths.get(rowIndex);
+    return (nodes == null) ? null : nodes.toArray()[rowIndex];
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {
-    return true;
+    return false;
   }
 }

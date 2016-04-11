@@ -4,19 +4,19 @@ import java.util.List;
 
 import javax.swing.table.AbstractTableModel;
 
-import tree.Node;
+import other.TestCase;
 
-public class NOIModel extends AbstractTableModel {
+public class TestCasesModel extends AbstractTableModel {
   private static final long serialVersionUID = -7480665278104499754L;
-  List<Node> nodes;
+  List<TestCase> paths;
 
-  public NOIModel(List<Node> nodes) {
-    this.nodes = nodes;
+  public TestCasesModel(List<TestCase> paths) {
+    this.paths = paths;
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
-    return Node.class;
+    return TestCase.class;
   }
 
   public int getColumnCount() {
@@ -24,18 +24,18 @@ public class NOIModel extends AbstractTableModel {
   }
 
   public String getColumnName(int columnIndex) {
-    return "Nodes";
+    return "Feed";
   }
 
   public int getRowCount() {
-    return (nodes == null) ? 0 : nodes.size();
+    return (paths == null) ? 0 : paths.size();
   }
 
   public Object getValueAt(int rowIndex, int columnIndex) {
-    return (nodes == null) ? null : nodes.get(rowIndex);
+    return (paths == null) ? null : paths.get(rowIndex);
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {
-    return false;
+    return true;
   }
 }

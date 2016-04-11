@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config version="0.1" filepath="C:\Users\Mitch\OneDrive\Documents\workspace\TP-Optimizer\models\ATM140726.btc">
+  <NOI>
+    <node tag="7" component="Console" behaviour="getAccount" behaviour-type="EXTERNAL-INPUT" />
+    <node tag="10" component="Coms" behaviour="withdrawal" behaviour-type="EXTERNAL-INPUT" />
+    <node tag="11" component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" />
+    <node tag="19" component="Coms" behaviour="insufficientFunds" behaviour-type="EXTERNAL-INPUT" />
+    <node tag="23" component="Display" behaviour="noSuchAccount" behaviour-type="EXTERNAL-OUTPUT" />
+    <node tag="99" component="Display" behaviour="noSuchAccount" behaviour-type="EXTERNAL-OUTPUT" />
+  </NOI>
+  <CP>
+    <node component="ATM" behaviour="Ready" />
+    <node component="ATM" behaviour="PerformTransaction" />
+    <node component="Display" behaviour="AnotherTransaction?" />
+    <initial tag="1" component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION"/>
+  </CP>  
+  <OR>
+    <node component="Display" behaviour="AnotherTransaction?" behaviour-type="STATE-REALISATION" observation="testingtestingtesting" />
+    <node component="Display" behaviour="ShowAccTypes" behaviour-type="STATE-REALISATION" observation="testingtestingtesting2" />
+    <node component="ATM" behaviour="PerformTransaction" behaviour-type="STATE-REALISATION" observation="testingtestingtesting3" />
+    <node component="Disp" behaviour="ShowWdAmounts" behaviour-type="STATE-REALISATION" observation="testingtestingtesting4" />
+    <node component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION" observation="testingtestingtesting5" />
+  </OR>
+  <UA>
+    <node component="Reader" behaviour="acceptCard" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting" preamble="true" />
+    <node component="Deader" behaviour="acceptCard" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting" preamble="true" />
+    <node component="Coms" behaviour="okWithdrawal" behaviour-type="EXTERNAL-INPUT" action="testingtestingtesting2" preamble="false" />
+  </UA>
+  <TP />
+</config>

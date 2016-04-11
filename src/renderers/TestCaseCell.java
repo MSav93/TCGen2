@@ -5,9 +5,11 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 
 import javax.swing.AbstractCellEditor;
+import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTable;
+import javax.swing.ToolTipManager;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
@@ -15,15 +17,14 @@ import other.Constants;
 import other.TestCase;
 import tree.Node;
 
-public class TestPathSelectorCell extends AbstractCellEditor
-    implements TableCellEditor, TableCellRenderer {
+public class TestCaseCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
   private static final long serialVersionUID = -5535773127849322173L;
   JPanel panel;
   JLabel text;
 
   TestCase path;
 
-  public TestPathSelectorCell() {
+  public TestCaseCell() {
     text = new JLabel();
     panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     panel.add(text);
@@ -33,24 +34,22 @@ public class TestPathSelectorCell extends AbstractCellEditor
   private void updateData(TestCase path, boolean isSelected, JTable table) {
     this.path = path;
 
-    text.setText("<html><b>Start Node:</b> " + path.getStartNode()
-        + "<br><b>TargetNode:</b> " + path.getEndNode() + "<br><b>Steps Away:</b> "
-        + path.getNodesAwayLength() + Constants.htmlTabSpacing + "<b>Steps Involved:</b> "
-        + path.getNodeLength() + "</html>");
-    Color bg = table.getSelectionBackground();
+    text.setText(getCellText());
 
+    // If cell is selected give it a border
     if (isSelected) {
-      // if(path.completed) {
-      panel.setBackground(
-          new Color(Math.min(255, bg.getRed() + 100), bg.getGreen(), bg.getBlue(), bg.getAlpha()));
-      // } else {
-      // panel.setBackground(bg);
+      panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, Color.BLUE));
     } else {
-      // if(path.completed) {
-      // panel.setBackground(new Color(255, 77, 77);
-      // } else {
-      panel.setBackground(table.getBackground());
-      // }
+      panel.setBorder(table.getBorder());
+    }
+    if (path.isSelected()) {
+      // If test case has been added to test path colour it green
+      panel.setBackground(Constants.cellChosenBG);
+    } else if (!path.isReachable()) {
+      // If test case is unreachable colour it red
+      panel.setBackground(Constants.cellUnavailableBG);
+    } else {
+      panel.setBackground(Constants.cellNotChosenBG);
     }
   }
 
@@ -58,6 +57,15 @@ public class TestPathSelectorCell extends AbstractCellEditor
       int row, int column) {
     TestCase feed = (TestCase) value;
     updateData(feed, true, table);
+    return panel;
+  }
+
+  public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+      boolean hasFocus, int row, int column) {
+    TestCase feed = (TestCase) value;
+    updateData(feed, isSelected, table);
+    panel.setToolTipText(getToolTipText());
+    ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
     return panel;
   }
 
@@ -94,11 +102,9 @@ public class TestPathSelectorCell extends AbstractCellEditor
     return "";
   }
 
-  public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-      boolean hasFocus, int row, int column) {
-    TestCase feed = (TestCase) value;
-    updateData(feed, isSelected, table);
-    panel.setToolTipText(getToolTipText());
-    return panel;
+  private String getCellText() {
+    return "<html><b>Start Node:</b> " + path.getStartNode() + "<br><b>TargetNode:</b> "
+        + path.getEndNode() + "<br><b>Steps Away:</b> " + path.getNodesAwayLength()
+        + Constants.htmlTabSpacing + "<b>Steps Involved:</b> " + path.getNodeLength() + "</html>";
   }
 }

@@ -36,6 +36,12 @@ public final class Constants {
 
   public static final ArrayList<String> acceptedUABehaviourTypes =
       new ArrayList<String>(Arrays.asList("EXTERNAL-INPUT", "EVENT"));
+  
+  public static final ArrayList<String> acceptedUAFlags =
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", ""));
+  
+  public static final ArrayList<String> acceptedORFlags =
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", ""));
 
   public static final ArrayList<String> nodeFlags =
       new ArrayList<String>(Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISATION"));

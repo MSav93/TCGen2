@@ -72,10 +72,13 @@ public class SBCLPipe {
     }
   }
 
-  protected void startServer() throws IOException {
+  private void startServer() throws IOException {
     if (os == "Windows") {
+      // TODO adding the argument /b to hide the cmd prompt from users seems to put a limit on how
+      // quickly commands can be given.
+      // This means generating test cases using a large amount of CPs times out and fails.
       Runtime.getRuntime().exec(
-          "cmd /c start /b cmd.exe /K \"cd BTAnalyser && sbcl --dynamic-space-size 4096 --load \"start.lisp\"");
+          "cmd /c start cmd.exe /K \"cd BTAnalyser && sbcl --dynamic-space-size 4096 --load \"start.lisp\"");
     } else if (os == "Mac") {
       Runtime.getRuntime().exec(new String[] {"osascript", "-e",
           "do shell script \"./start.sh &>/dev/null &\" with administrator privileges"});
@@ -87,9 +90,9 @@ public class SBCLPipe {
     }
   }
 
-  protected void killServer() throws IOException {
+  public static void killServer() throws IOException {
     if (System.getProperty("os.name").startsWith("Windows")) {
-      Runtime.getRuntime().exec("taskkill /F /IM sbcl.exe");
+      Runtime.getRuntime().exec("taskkill /F /T /IM sbcl.exe");
     } else if (System.getProperty("os.name").startsWith("Mac")) {
       Runtime.getRuntime().exec(new String[] {"osascript", "-e",
           "do shell script \"./shutdown.sh &>/dev/null &\" with administrator privileges"});
