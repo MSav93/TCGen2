@@ -1,4 +1,4 @@
-package renderers;
+package table;
 
 import java.awt.Color;
 import java.awt.Component;

@@ -1,4 +1,4 @@
-package renderers;
+package table;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -17,23 +17,21 @@ import other.Constants;
 import other.TestCase;
 import tree.Node;
 
-public class TestCaseCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
+public class TestPathCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
   private static final long serialVersionUID = -5535773127849322173L;
   JPanel panel;
   JLabel text;
+  TestCase testCase;
 
-  TestCase path;
-
-  public TestCaseCell() {
+  public TestPathCell() {
     text = new JLabel();
     panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     panel.add(text);
     panel.setBackground(new Color(255, 77, 77));
   }
 
-  private void updateData(TestCase path, boolean isSelected, JTable table) {
-    this.path = path;
-
+  protected void updateData(TestCase testCase, boolean isSelected, JTable table) {
+    this.testCase = testCase;
     text.setText(getCellText());
 
     // If cell is selected give it a border
@@ -42,15 +40,13 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
     } else {
       panel.setBorder(table.getBorder());
     }
-    if (path.isSelected()) {
-      // If test case has been added to test path colour it green
-      panel.setBackground(Constants.cellChosenBG);
-    } else if (!path.isReachable()) {
-      // If test case is unreachable colour it red
-      panel.setBackground(Constants.cellUnavailableBG);
+    if (testCase.isPreAmble()) {
+      panel.setBackground(Constants.warningColour);
     } else {
-      panel.setBackground(Constants.cellNotChosenBG);
+      panel.setBackground(Constants.notSelectedColour);
     }
+    panel.setToolTipText(getToolTipText());
+    ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
   }
 
   public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected,
@@ -64,8 +60,6 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
       boolean hasFocus, int row, int column) {
     TestCase feed = (TestCase) value;
     updateData(feed, isSelected, table);
-    panel.setToolTipText(getToolTipText());
-    ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
     return panel;
   }
 
@@ -73,14 +67,15 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
     return null;
   }
 
+  protected String getCellText() {
+    return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>TargetNode:</b> "
+        + testCase.getEndNode() + "<br><b>Steps Involved:</b> " + (testCase.getNodeLength() - 1) + "</html>";
+  }
+
   public String getToolTipText() {
     StringBuilder sb = new StringBuilder();
-    sb.append("<html><b>Steps Away:</b> " + path.getNodesAwayLength());
-    for (Node n : path.getNodesAway()) {
-      sb.append("<br>" + Constants.htmlTabSpacing + formatNode(n));
-    }
-    sb.append("<br><b>Steps Involved:</b> " + path.getNodeLength());
-    for (Node n : path.getNodeSteps()) {
+    sb.append("<html><b>Steps Involved:</b> " + testCase.getNodeLength());
+    for (Node n : testCase.getNodeSteps()) {
       sb.append("<br>" + Constants.htmlTabSpacing + formatNode(n));
     }
     sb.append("</html>");
@@ -100,11 +95,5 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
       return " " + flag;
     }
     return "";
-  }
-
-  private String getCellText() {
-    return "<html><b>Start Node:</b> " + path.getStartNode() + "<br><b>TargetNode:</b> "
-        + path.getEndNode() + "<br><b>Steps Away:</b> " + path.getNodesAwayLength()
-        + Constants.htmlTabSpacing + "<b>Steps Involved:</b> " + path.getNodeLength() + "</html>";
   }
 }

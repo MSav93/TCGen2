@@ -2,6 +2,7 @@ package other;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import tree.Node;
 
@@ -11,10 +12,11 @@ public class TestCase {
   private ArrayList<Node> nodeList;
   private Node startNode;
   private Node endNode;
-  private ArrayList<Integer> blocksAway = new ArrayList<Integer>();
+  private List<Integer> blocksAway = new ArrayList<Integer>();
   private ArrayList<Node> nodesAway = new ArrayList<Node>();
   private Boolean isSelected = false;
   private Boolean isReachable = true;
+  private boolean preAmble;
 
   public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam) {
     this.blockList = new ArrayList<Integer>(blockListParam);
@@ -52,14 +54,17 @@ public class TestCase {
     return endNode;
   }
 
-  public void setStepsAway(ArrayList<Integer> blocksAwayParam, ArrayList<Node> nodesAwayParam) {
-    if (blocksAwayParam != null) {
-      blocksAway = blocksAwayParam;
+  public void setStepsAway(List<Integer> list, ArrayList<Node> nodesAwayParam) {
+    if (list != null) {
+      isReachable= true;
+      blocksAway = list;
       nodesAway = nodesAwayParam;
+    } else {
+      isReachable = false;
     }
   }
 
-  public ArrayList<Integer> getBlocksAway() {
+  public List<Integer> getBlocksAway() {
     return blocksAway;
   }
 
@@ -76,7 +81,7 @@ public class TestCase {
   }
 
   public String toString() {
-    return endNode + "" + blockList + "(" + getLength() + ")";
+    return blockList + "(" + getLength() + ")";
   }
 
   public Boolean isSelected() {
@@ -95,5 +100,11 @@ public class TestCase {
     this.isReachable = isReachable;
   }
 
+  public void setPreAmble(boolean preAmble) {
+    this.preAmble = preAmble;
+  }
 
+  public boolean isPreAmble() {
+    return this.preAmble;
+  }
 }

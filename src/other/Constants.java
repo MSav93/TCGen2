@@ -22,11 +22,13 @@ public final class Constants {
 
   public static final int timeout = 5000;
 
-  public static final Color cellChosenBG = new Color(100, 215, 115);
+  public static final Color selectedColour = new Color(100, 215, 115);
 
-  public static final Color cellNotChosenBG = new Color(255, 255, 255);
+  public static final Color notSelectedColour = new Color(255, 255, 255);
+  
+  public static final Color warningColour = new Color(235, 235, 60);
 
-  public static final Color cellUnavailableBG = new Color(100, 215, 115);
+  public static final Color unavailableColour = new Color(225, 30, 75);
 
   // 8 spaces
   public static final String tabSpacing = "        ";

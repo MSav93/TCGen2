@@ -1,4 +1,4 @@
-package renderers;
+package table;
 
 import java.util.List;
 
@@ -36,6 +36,6 @@ public class TestCasesModel extends AbstractTableModel {
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {
-    return true;
+    return false;
   }
 }
