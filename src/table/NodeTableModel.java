@@ -13,10 +13,18 @@ public class NodeTableModel extends AbstractTableModel {
   public NodeTableModel(Collection<Node> cps) {
     this.nodes = cps;
   }
+  
+  public NodeTableModel() {
+  }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
     return Node.class;
+  }
+  
+  public void addData(Collection<Node> nodes) {
+    this.nodes = nodes;
+    
   }
 
   public int getColumnCount() {
@@ -26,13 +34,17 @@ public class NodeTableModel extends AbstractTableModel {
   public String getColumnName(int columnIndex) {
     return "Nodes";
   }
+  
+  public Node getValueAt(int rowIndex) {
+    return (nodes == null) ? null : nodes.toArray(new Node[] {})[rowIndex];
+}
 
   public int getRowCount() {
     return (nodes == null) ? 0 : nodes.size();
   }
 
-  public Object getValueAt(int rowIndex, int columnIndex) {
-    return (nodes == null) ? null : nodes.toArray()[rowIndex];
+  public Node getValueAt(int rowIndex, int columnIndex) {
+    return (nodes == null) ? null : nodes.toArray(new Node[] {})[rowIndex];
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {

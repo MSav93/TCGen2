@@ -100,6 +100,21 @@ public class Node implements Comparable<Node> {
     if (result == 0) {
       result = getFlag().compareTo(otherNode.getFlag());
     }
+    if (result == 0) {
+      result = isCp().compareTo(otherNode.isCp());
+    }
+    if (result == 0) {
+      result = isNoi().compareTo(otherNode.isNoi());
+    }
+    if (result == 0) {
+      result = getAction().compareTo(otherNode.getAction());
+    }
+    if (result == 0) {
+      result = isPreamble().compareTo(otherNode.isPreamble());
+    }
+    if (result == 0) {
+      result = getObservable().compareTo(otherNode.getObservable());
+    }
     return result;
   }
 
@@ -124,6 +139,7 @@ public class Node implements Comparable<Node> {
       return false;
     }
   }
+
 
   public boolean equalsSimple(Node otherNode) {
     boolean result = getComponent().equals(otherNode.getComponent());
@@ -152,7 +168,7 @@ public class Node implements Comparable<Node> {
     this.observable = observable;
   }
 
-  public Boolean getPreamble() {
+  public Boolean isPreamble() {
     return preamble;
   }
 

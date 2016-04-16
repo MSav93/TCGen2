@@ -17,9 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -45,11 +43,14 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.TableRowSorter;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.jdom2.Attribute;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -63,18 +64,21 @@ import com.SBCLPipe;
 import other.Constants;
 import other.TestCase;
 import table.CPCell;
+import table.CPFilter;
 import table.NOICell;
+import table.NOIFilter;
 import table.NodeTableModel;
 import table.ORCell;
+import table.ORFilter;
 import table.TestCaseCell;
 import table.TestCasesModel;
 import table.TestPathCell;
 import table.TestPathModel;
 import table.UACell;
+import table.UAFilter;
 import tree.Block;
 import tree.Node;
 import util.BTModelReader;
-import javax.swing.border.BevelBorder;
 
 public class Main extends JFrame {
 
@@ -149,10 +153,12 @@ public class Main extends JFrame {
   private Node currentNode;
 
   Set<Node> chosenNOIs = new TreeSet<Node>();
-  TreeSet<Node> chosenCPs = new TreeSet<Node>();
-  LinkedHashMap<Node, String> observableResponses = new LinkedHashMap<Node, String>();
-  LinkedHashMap<Node, String[]> userActions = new LinkedHashMap<Node, String[]>();
+  Set<Node> chosenCPs = new TreeSet<Node>();
+  Set<Node> observableResponses = new TreeSet<Node>();
+  Set<Node> userActions = new TreeSet<Node>();
   ArrayList<TestCase> selectedTCs = new ArrayList<TestCase>();
+
+  private Set<Node> allNodes = new TreeSet<Node>();
 
   private static final long serialVersionUID = 1L;
 
@@ -208,17 +214,10 @@ public class Main extends JFrame {
     indexToNodesMap.clear();
     compToBehaviourMap.clear();
 
-    updateDisplay();
-
-
-    // tblNOI.setModel(new NodeTableModel(null));
-    // tblCP.setModel(new NodeTableModel(null));
-    // cmbInitialState.removeAllItems();
-    // tblOR.setModel(new NodeTableModel(null));
-    // taORInput.setText("");
-    // tblUA.setModel(new NodeTableModel(null));
-    // taUAInput.setText("");
-    // chckbxAppearPreAmble.setSelected(false);
+    cmbInitialState.removeAllItems();
+    taUAInput.setText("");
+    taORInput.setText("");
+    chckbxAppearPreAmble.setSelected(false);
 
     btFilePath = "";
   }
@@ -287,46 +286,21 @@ public class Main extends JFrame {
     File f = new File(btFilePath);
     loadBTModel(f);
 
-    // NOIS
-    List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
-    // recording nodes that get matched to remove later to avoid ConcurrentModificationException.
-    ArrayList<Element> nodesToBeRemoved = new ArrayList<Element>();
-    for (int i = 0; i < tblNOI.getModel().getRowCount(); i++) {
-      Node tblNode = (Node) tblNOI.getValueAt(i, 0);
-      for (Element noi : nodesOfInterest) {
-        if (checkElementsAttributes(noi, "noi")) {
-          Node xmlNode = new Node(Integer.parseInt(noi.getAttributeValue("tag")),
-              noi.getAttributeValue("component"), noi.getAttributeValue("behaviour-type"),
-              noi.getAttributeValue("behaviour"), noi.getAttributeValue("flag"), null);
-          if (tblNode.equals(xmlNode)) {
-            // Selects this node as a NOI
-            chosenNOIs.add(tblNode);
-            // Remove node from remaining list of unmatched nodes
-            nodesToBeRemoved.add(noi);
-          }
-        }
-      }
-    }
-    for (Element node : nodesToBeRemoved) {
-      nodesOfInterest.remove(node);
-    }
     // CPs
     List<Element> checkpoints = config.getChild("CP").getChildren("node");
     ArrayList<Element> checkpointsToBeRemoved = new ArrayList<Element>();
     for (Element cp : checkpoints) {
-      if (checkElementsAttributes(cp, "cp")) {
-        String component = cp.getAttributeValue("component");
-        String behaviour = cp.getAttributeValue("behaviour");
-        if (compToBehaviourMap.containsKey(component)) {
-          ArrayList<Node> nodes = compToBehaviourMap.get(component);
-          for (Node node : nodes) {
-            if (node.getBehaviour().equals(behaviour)) {
-              // Selects this node as a CP
-              chosenCPs.add(node);
-              // Remove node from remaining list of unmatched nodes
-              checkpointsToBeRemoved.add(cp);
-              // break;
-            }
+      for (Node btNode : chosenCPs) {
+        if (checkElementsAttributes(cp, "cp")) {
+          Node configNode = new Node(null, cp.getAttributeValue("component"),
+              cp.getAttributeValue("behaviour-type"), cp.getAttributeValue("behaviour"), null,
+              null);
+          if (configNode.equalsSimple(btNode)) {
+            // Selects this node as a CP
+            btNode.setCp(true);
+            // Remove node from remaining list of unmatched nodes
+            checkpointsToBeRemoved.add(cp);
+            // break;
           }
         }
       }
@@ -334,10 +308,8 @@ public class Main extends JFrame {
     for (Element cp : checkpointsToBeRemoved) {
       checkpoints.remove(cp);
     }
-
     // Initial CP
     Element initialCp = config.getChild("CP").getChild("initial");
-
     if (initialCp != null) {
       if (checkElementsAttributes(initialCp, "initial")) {
         Node initial = new Node(Integer.parseInt(initialCp.getAttributeValue("tag")),
@@ -359,20 +331,18 @@ public class Main extends JFrame {
     List<Element> observables = config.getChild("OR").getChildren();
     ArrayList<Element> observablesToBeRemoved = new ArrayList<Element>();
     for (Element or : observables) {
-      if (checkElementsAttributes(or, "or")) {
-        if (compToBehaviourMap.containsKey(or.getAttributeValue("component"))) {
-          ArrayList<Node> nodes = compToBehaviourMap.get(or.getAttributeValue("component"));
-          for (Node node : nodes) {
-            Node xmlNode = new Node(Integer.parseInt(or.getAttributeValue("tag")),
-                or.getAttributeValue("component"), or.getAttributeValue("behaviour-type"),
-                or.getAttributeValue("behaviour"), or.getAttributeValue("flag"), null);
-            if (node.equals(xmlNode)) {
-              // Populate this nodes observables
-              observableResponses.put(node, or.getAttributeValue("observation"));
-              // Remove node from remaining list of unmatched nodes
-              observablesToBeRemoved.add(or);
-              break;
-            }
+      for (Node btNode : observableResponses) {
+        if (checkElementsAttributes(or, "or")) {
+          Node xmlNode = new Node(Integer.parseInt(or.getAttributeValue("tag")),
+              or.getAttributeValue("component"), or.getAttributeValue("behaviour-type"),
+              or.getAttributeValue("behaviour"), or.getAttributeValue("flag"), null);
+          if (btNode.equals(xmlNode)) {
+            // Populate this nodes observables
+            btNode
+                .setObservable(StringEscapeUtils.unescapeXml(or.getAttributeValue("observation")));
+            // Remove node from remaining list of unmatched nodes
+            observablesToBeRemoved.add(or);
+            break;
           }
         }
       }
@@ -385,27 +355,47 @@ public class Main extends JFrame {
     List<Element> actions = config.getChild("UA").getChildren();
     ArrayList<Element> actionsToBeRemoved = new ArrayList<Element>();
     for (Element ua : actions) {
-      if (checkElementsAttributes(ua, "ua")) {
-        if (compToBehaviourMap.containsKey(ua.getAttributeValue("component"))) {
-          ArrayList<Node> nodes = compToBehaviourMap.get(ua.getAttributeValue("component"));
-          for (Node node : nodes) {
-            Node xmlNode = new Node(Integer.parseInt(ua.getAttributeValue("tag")),
-                ua.getAttributeValue("component"), ua.getAttributeValue("behaviour-type"),
-                ua.getAttributeValue("behaviour"), ua.getAttributeValue("flag"), null);
-            if (node.equals(xmlNode)) {
-              // Populate this nodes actions
-              userActions.put(node,
-                  new String[] {ua.getAttributeValue("action"), ua.getAttributeValue("preamble")});
-              // Remove node from remaining list of unmatched nodes
-              actionsToBeRemoved.add(ua);
-              break;
-            }
+      for (Node btNode : userActions) {
+        if (checkElementsAttributes(ua, "ua")) {
+          Node xmlNode = new Node(Integer.parseInt(ua.getAttributeValue("tag")),
+              ua.getAttributeValue("component"), ua.getAttributeValue("behaviour-type"),
+              ua.getAttributeValue("behaviour"), ua.getAttributeValue("flag"), null);
+          if (btNode.equals(xmlNode)) {
+            // Populate this nodes actions
+            btNode.setAction(StringEscapeUtils.unescapeXml(ua.getAttributeValue("action")));
+            btNode.setPreamble(ua.getAttributeValue("preamble").equals("true"));
+            // Remove node from remaining list of unmatched nodes
+            actionsToBeRemoved.add(ua);
+            break;
           }
         }
       }
     }
     for (Element ua : actionsToBeRemoved) {
       actions.remove(ua);
+    }
+
+    // NOIS
+    List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
+    // recording nodes that get matched to remove later to avoid ConcurrentModificationException.
+    ArrayList<Element> nodesToBeRemoved = new ArrayList<Element>();
+    for (Node btNode : chosenNOIs) {
+      for (Element noi : nodesOfInterest) {
+        if (checkElementsAttributes(noi, "noi")) {
+          Node configNode = new Node(Integer.parseInt(noi.getAttributeValue("tag")),
+              noi.getAttributeValue("component"), noi.getAttributeValue("behaviour-type"),
+              noi.getAttributeValue("behaviour"), noi.getAttributeValue("flag"), null);
+          if (btNode.equals(configNode)) {
+            // Selects this node as a NOI
+            btNode.setNoi(true);
+            // Remove node from remaining list of unmatched nodes
+            nodesToBeRemoved.add(noi);
+          }
+        }
+      }
+    }
+    for (Element node : nodesToBeRemoved) {
+      nodesOfInterest.remove(node);
     }
 
     // TP
@@ -440,6 +430,9 @@ public class Main extends JFrame {
         }
         if (valid) {
           valid = (element.getAttributeValue("behaviour") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("behaviour-type") != null);
         }
         return valid;
       case "initial":
@@ -515,13 +508,11 @@ public class Main extends JFrame {
     // load nodes NOI table
     populateNodeMaps();
 
+    populateTblCP();
+    populateTblUA();
+    populateTblOR();
+    populateTblNOI();
     updateDisplay();
-
-    // populateTblCP();
-    // populateTblUA();
-    // populateTblOR();
-
-    // updateUAChkBox();
 
     btnGenerateTestCases.setEnabled(true);
     tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.noiTabName), true);
@@ -531,29 +522,34 @@ public class Main extends JFrame {
   }
 
   private void populateNodeMaps() {
-    List<Node> nodes = new ArrayList<Node>();
     for (int key : indexToNodesMap.keySet()) {
       for (Node node : indexToNodesMap.get(key).getNodes()) {
-        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
-          userActions.put(node, new String[] {"", ""});
-        }
-        if (Constants.acceptedORBehaviourTypes.contains(node.getBehaviourType())) {
-          observableResponses.put(node, "");
-        }
+        allNodes.add(node);
+        // if (Constants.acceptedCPFlags.contains(node.getFlag())) {
+        // chosenCPs.add(node);
+        // }
+        // if (Constants.acceptedNOIFlags.contains(node.getFlag())) {
+        // chosenNOIs.add(node);
+        // }
+        // if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
+        // userActions.add(node);
+        // }
+        // if (Constants.acceptedORBehaviourTypes.contains(node.getBehaviourType())) {
+        // observableResponses.add(node);
+        // }
         if (!compToBehaviourMap.containsKey(node.getComponent())) {
           compToBehaviourMap.put(node.getComponent(), new ArrayList<Node>());
         }
         compToBehaviourMap.get(node.getComponent()).add(node);
-        nodes.add(node);
       }
     }
-    tblNOI.setModel(new NodeTableModel(nodes));
   }
 
   private void updateDisplay() {
-    updateCPTab();
-    updateORTab();
-    updateUATab();
+    updateCPInitial();
+    updateORInput();
+    updateUAChkBox();
+    updateUAInput();
   }
 
   private void reportConfigDifferences(List<Element> nodesOfInterest, List<Element> checkpoints,
@@ -649,21 +645,10 @@ public class Main extends JFrame {
     }
   }
 
-  private void updateCPTab() {
-    populateTblCP();
-    updateCPInitial();
-  }
-
+  @SuppressWarnings("unchecked")
   private void populateTblCP() {
-    Set<Node> potentialCPNodes = new TreeSet<Node>();
-    for (int key : indexToNodesMap.keySet()) {
-      for (Node node : indexToNodesMap.get(key).getNodes()) {
-        if (node.getBehaviourType().equals("STATE-REALISATION")) {
-          potentialCPNodes.add(node);
-        }
-      }
-    }
-    tblCP.setModel(new NodeTableModel(potentialCPNodes));
+    ((NodeTableModel) tblCP.getModel()).addData(allNodes);
+    ((TableRowSorter<NodeTableModel>) tblCP.getRowSorter()).setRowFilter(new CPFilter());
   }
 
   /**
@@ -672,30 +657,27 @@ public class Main extends JFrame {
   private void updateCPInitial() {
     TreeSet<Node> potentialInitialCP = new TreeSet<Node>();
     for (Node node : chosenCPs) {
-      potentialInitialCP.add(node);
+      if (node.isCp()) {
+        potentialInitialCP.add(node);
+      }
     }
     cmbInitialState
         .setModel(new DefaultComboBoxModel<Node>(potentialInitialCP.toArray(new Node[] {})));
+    // Make cmbBox appear blank as no initialNode is selected
     cmbInitialState.setSelectedIndex(-1);
-    initialNode = null;
-  }
-
-  private void updateORTab() {
-    populateTblOR();
-    updateORInput();
-  }
-
-  private void populateTblOR() {
-    Set<Node> potentialORNodes = new TreeSet<Node>();
-    for (int key : indexToNodesMap.keySet()) {
-      for (Node node : indexToNodesMap.get(key).getNodes()) {
-        if (Constants.acceptedORBehaviourTypes.contains(node.getBehaviourType())
-            && Constants.acceptedORFlags.contains(node.getFlag())) {
-          potentialORNodes.add(node);
-        }
-      }
+    // If the changes made to CP did not relate to currently selected initial node then set it back
+    // to that.
+    cmbInitialState.setSelectedItem(initialNode);
+    // If initialNode is not a selectable option set it to null
+    if (cmbInitialState.getSelectedIndex() == -1) {
+      initialNode = null;
     }
-    tblOR.setModel(new NodeTableModel(potentialORNodes));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void populateTblOR() {
+    ((NodeTableModel) tblOR.getModel()).addData(allNodes);
+    ((TableRowSorter<NodeTableModel>) tblOR.getRowSorter()).setRowFilter(new ORFilter());
   }
 
   /**
@@ -704,29 +686,14 @@ public class Main extends JFrame {
   private void updateORInput() {
     if (tblOR.getSelectedRow() != -1) {
       Node selectedNode = (Node) tblOR.getValueAt(tblOR.getSelectedRow(), 0);
-      if (observableResponses.get(selectedNode) != null) {
-        taORInput.setText(observableResponses.get(selectedNode));
-      }
+      taORInput.setText(selectedNode.getObservable());
     }
   }
 
-  private void updateUATab() {
-    populateTblUA();
-    updateUAChkBox();
-    updateUAInput();
-  }
-
+  @SuppressWarnings("unchecked")
   private void populateTblUA() {
-    Set<Node> potentialUANodes = new TreeSet<Node>();
-    for (int key : indexToNodesMap.keySet()) {
-      for (Node node : indexToNodesMap.get(key).getNodes()) {
-        if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())
-            && Constants.acceptedUAFlags.contains(node.getFlag())) {
-          potentialUANodes.add(node);
-        }
-      }
-    }
-    tblUA.setModel(new NodeTableModel(potentialUANodes));
+    ((NodeTableModel) tblUA.getModel()).addData(allNodes);
+    ((TableRowSorter<NodeTableModel>) tblUA.getRowSorter()).setRowFilter(new UAFilter());
   }
 
   private void updateUAChkBox() {
@@ -744,16 +711,24 @@ public class Main extends JFrame {
   private void updateUAInput() {
     if (tblUA.getSelectedRow() != -1) {
       Node selectedNode = (Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0);
-      if (userActions.get(selectedNode) != null) {
-        taUAInput.setText(userActions.get(selectedNode)[0]);
-        if (userActions.get(selectedNode)[1].equals("true")) {
-          chckbxAppearPreAmble.setSelected(true);
-        } else {
-          chckbxAppearPreAmble.setSelected(false);
-        }
+      taUAInput.setText(selectedNode.getAction());
+      if (selectedNode.isPreamble()) {
+        chckbxAppearPreAmble.setSelected(true);
+      } else {
+        chckbxAppearPreAmble.setSelected(false);
       }
     }
     updateUAChkBox();
+  }
+
+  private void populateTblNOI() {
+    ((NodeTableModel) tblNOI.getModel()).addData(allNodes);
+    refreshTblNOIFilter();
+  }
+
+  @SuppressWarnings("unchecked")
+  private void refreshTblNOIFilter() {
+    ((TableRowSorter<NodeTableModel>) tblNOI.getRowSorter()).setRowFilter(new NOIFilter());
   }
 
   private void populateTPTab(ArrayList<ArrayList<Integer>> rawTestCases) {
@@ -773,7 +748,6 @@ public class Main extends JFrame {
     for (int i = 0; i < tblTCs.getRowCount(); i++) {
       TestCase tc = (TestCase) tblTCs.getValueAt(i, 0);
       if (!(tc.getStartNode().getBlockIndex() == currentNode.getBlockIndex())) {
-        System.out.println("Generating Steps Away");
         ArrayList<Integer> blocks = calcTotalTestCaseSteps(currentNode, tc);
         if (blocks != null) {
           if (blocks.size() == 1 && blocks.get(0) == tc.getStartNode().getBlockIndex()) {
@@ -787,7 +761,6 @@ public class Main extends JFrame {
         }
       } else {
         // Test Case is 0 steps away
-        System.out.println("Test Case is 0 steps away");
         tc.setStepsAway(new ArrayList<Integer>(), new ArrayList<Node>());
       }
     }
@@ -899,23 +872,28 @@ public class Main extends JFrame {
     config.setAttribute(new Attribute("filepath", btFilePath));
     Element noi = new Element("NOI");
     for (Node node : chosenNOIs) {
-      Element nodeToAdd = new Element("node");
-      nodeToAdd.setAttribute("tag", node.getTag().toString());
-      nodeToAdd.setAttribute("component", node.getComponent());
-      nodeToAdd.setAttribute("behaviour", node.getBehaviour());
-      nodeToAdd.setAttribute("behaviour-type", node.getBehaviourType());
-      nodeToAdd.setAttribute("flag", node.getFlag());
-      noi.addContent(nodeToAdd);
+      if (node.isNoi()) {
+        Element nodeToAdd = new Element("node");
+        nodeToAdd.setAttribute("tag", node.getTag().toString());
+        nodeToAdd.setAttribute("component", node.getComponent());
+        nodeToAdd.setAttribute("behaviour", node.getBehaviour());
+        nodeToAdd.setAttribute("behaviour-type", node.getBehaviourType());
+        nodeToAdd.setAttribute("flag", node.getFlag());
+        noi.addContent(nodeToAdd);
+      }
     }
 
     Element cp = new Element("CP");
     for (Node node : chosenCPs) {
-      Element nodeToAdd = new Element("node");
-      nodeToAdd.setAttribute("component", node.getComponent());
-      nodeToAdd.setAttribute("behaviour", node.getBehaviour());
-      cp.addContent(nodeToAdd);
+      if (node.isCp()) {
+        Element nodeToAdd = new Element("node");
+        nodeToAdd.setAttribute("component", node.getComponent());
+        nodeToAdd.setAttribute("behaviour", node.getBehaviour());
+        nodeToAdd.setAttribute("behaviour-type", node.getBehaviourType());
+        cp.addContent(nodeToAdd);
+      }
     }
-    if (!initialNode.equals("")) {
+    if (initialNode != null) {
       Element initialCP = new Element("initial");
       initialCP.setAttribute("tag", initialNode.getTag().toString());
       initialCP.setAttribute("component", initialNode.getComponent());
@@ -926,32 +904,31 @@ public class Main extends JFrame {
     }
 
     Element or = new Element("OR");
-    for (Entry<Node, String> observation : observableResponses.entrySet()) {
-      if (!observation.getValue().equals("")) {
-        Node node = observation.getKey();
+    for (Node orNode : observableResponses) {
+      if (!orNode.getObservable().equals("")) {
         Element nodeToAdd = new Element("node");
-        nodeToAdd.setAttribute("tag", node.getTag().toString());
-        nodeToAdd.setAttribute("component", node.getComponent());
-        nodeToAdd.setAttribute("behaviour", node.getBehaviour());
-        nodeToAdd.setAttribute("behaviour-type", node.getBehaviourType());
-        nodeToAdd.setAttribute("flag", node.getFlag());
-        nodeToAdd.setAttribute("observation", observation.getValue());
+        nodeToAdd.setAttribute("tag", orNode.getTag().toString());
+        nodeToAdd.setAttribute("component", orNode.getComponent());
+        nodeToAdd.setAttribute("behaviour", orNode.getBehaviour());
+        nodeToAdd.setAttribute("behaviour-type", orNode.getBehaviourType());
+        nodeToAdd.setAttribute("flag", orNode.getFlag());
+        nodeToAdd.setAttribute("observation",
+            StringEscapeUtils.escapeXml10(orNode.getObservable()));
         or.addContent(nodeToAdd);
       }
     }
 
     Element ua = new Element("UA");
-    for (Entry<Node, String[]> action : userActions.entrySet()) {
-      if (!action.getValue()[0].equals("")) {
-        Node node = action.getKey();
+    for (Node uaNode : userActions) {
+      if (!uaNode.getAction().equals("")) {
         Element nodeToAdd = new Element("node");
-        nodeToAdd.setAttribute("tag", node.getTag().toString());
-        nodeToAdd.setAttribute("component", node.getComponent());
-        nodeToAdd.setAttribute("behaviour", node.getBehaviour());
-        nodeToAdd.setAttribute("behaviour-type", node.getBehaviourType());
-        nodeToAdd.setAttribute("flag", node.getFlag());
-        nodeToAdd.setAttribute("action", action.getValue()[0]);
-        nodeToAdd.setAttribute("preamble", action.getValue()[1]);
+        nodeToAdd.setAttribute("tag", uaNode.getTag().toString());
+        nodeToAdd.setAttribute("component", uaNode.getComponent());
+        nodeToAdd.setAttribute("behaviour", uaNode.getBehaviour());
+        nodeToAdd.setAttribute("behaviour-type", uaNode.getBehaviourType());
+        nodeToAdd.setAttribute("flag", uaNode.getFlag());
+        nodeToAdd.setAttribute("action", StringEscapeUtils.escapeXml10(uaNode.getAction()));
+        nodeToAdd.setAttribute("preamble", uaNode.isPreamble().toString());
         ua.addContent(nodeToAdd);
       }
     }
@@ -1115,6 +1092,7 @@ public class Main extends JFrame {
     btnGenerateTestCases.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         selectedTCs.clear();
+        currentNode = null;
         ArrayList<String> commands = creatTestCaseGenCommands();
         if (commands.size() > 0) {
           ArrayList<ArrayList<Integer>> testCases = sendTestCaseGenCommands(commands);
@@ -1172,7 +1150,10 @@ public class Main extends JFrame {
     panelCP.add(lblCPNote1);
 
     /* Checkpoints Table */
-    tblCP = new JTable(new NodeTableModel(null));
+    tblCP = new JTable(new NodeTableModel());
+    TableRowSorter<NodeTableModel> sorter =
+        new TableRowSorter<NodeTableModel>((NodeTableModel) tblCP.getModel());
+    tblCP.setRowSorter(sorter);
     tblCP.setDefaultRenderer(Node.class, new CPCell());
     tblCP.setDefaultEditor(Node.class, new CPCell());
     tblCP.setRowHeight(30);
@@ -1192,11 +1173,17 @@ public class Main extends JFrame {
     btnRemoveCP.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         for (int i : tblCP.getSelectedRows()) {
-          chosenCPs.remove((Node) tblCP.getValueAt(i, 0));
-          ((Node) tblCP.getValueAt(i, 0)).setCp(false);
+          for (Node n : allNodes) {
+            Node tblNode = (Node) tblCP.getValueAt(i, 0);
+            if (n.equalsSimple(tblNode)) {
+              n.setCp(false);
+              chosenCPs.remove(n);
+            }
+          }
           tblCP.repaint();
         }
         updateCPInitial();
+        refreshTblNOIFilter();
       }
     });
     btnRemoveCP.setBounds(242, 468, 200, 60);
@@ -1207,11 +1194,17 @@ public class Main extends JFrame {
     btnAddCP.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         for (int i : tblCP.getSelectedRows()) {
-          chosenCPs.add((Node) tblCP.getValueAt(i, 0));
-          ((Node) tblCP.getValueAt(i, 0)).setCp(true);
+          Node tblNode = (Node) tblCP.getValueAt(i, 0);
+          for (Node n : allNodes) {
+            if (n.equalsSimple(tblNode)) {
+              n.setCp(true);
+              chosenCPs.add(n);
+            }
+          }
           tblCP.repaint();
         }
         updateCPInitial();
+        refreshTblNOIFilter();
       }
     });
     btnAddCP.setBounds(684, 468, 200, 60);
@@ -1265,7 +1258,10 @@ public class Main extends JFrame {
     panelOA.add(lblORInput);
 
     /* Observable Response Table */
-    tblOR = new JTable(new NodeTableModel(null));
+    tblOR = new JTable(new NodeTableModel());
+    TableRowSorter<NodeTableModel> sorter =
+        new TableRowSorter<NodeTableModel>((NodeTableModel) tblOR.getModel());
+    tblOR.setRowSorter(sorter);
     tblOR.setDefaultRenderer(Node.class, new ORCell());
     tblOR.setDefaultEditor(Node.class, new ORCell());
     tblOR.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -1273,6 +1269,11 @@ public class Main extends JFrame {
       @Override
       public void valueChanged(ListSelectionEvent arg0) {
         updateORInput();
+        if (tblOR.getSelectedRow() == -1) {
+          taORInput.setEnabled(false);
+        } else {
+          taORInput.setEnabled(true);
+        }
       }
     });
     tblOR.setRowHeight(30);
@@ -1289,14 +1290,29 @@ public class Main extends JFrame {
     taORInput.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
     taORInput.setWrapStyleWord(true);
     taORInput.setLineWrap(true);
+    taORInput.setEnabled(false);
     taORInput.addKeyListener(new KeyAdapter() {
       @Override
       public void keyReleased(KeyEvent arg0) {
-        for (int i : tblOR.getSelectedRows()) {
-          observableResponses.put((Node) tblOR.getValueAt(i, 0), taORInput.getText());
-          ((Node) tblOR.getValueAt(i, 0)).setObservable((taORInput.getText()));
-          tblOR.repaint();
+        Node tblNode = (Node) tblOR.getValueAt(tblOR.getSelectedRow(), 0);
+        if (observableResponses.contains(tblNode)) {
+          for (Node n : observableResponses) {
+            if (n.equalsSimple(tblNode)) {
+              n.setObservable(taORInput.getText());
+              if (taORInput.getText().equals("")) {
+                observableResponses.remove(n);
+              }
+            }
+          }
+        } else {
+          for (Node n : allNodes) {
+            if (n.equalsSimple(tblNode)) {
+              n.setObservable(taORInput.getText());
+              observableResponses.add(n);
+            }
+          }
         }
+        tblOR.repaint();
       }
     });
     taORInput.setBounds(665, 64, 451, 557);
@@ -1329,14 +1345,9 @@ public class Main extends JFrame {
     /* Action Checkbox */
     chckbxAppearPreAmble.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        for (int i : tblUA.getSelectedRows()) {
-          String[] uaData = userActions.get(tblUA.getValueAt(i, 0));
-          uaData[0] = taUAInput.getText();
-          uaData[1] = Boolean.toString(chckbxAppearPreAmble.isSelected());
-          ((Node) tblUA.getValueAt(i, 0)).setAction(taUAInput.getText());
-          ((Node) tblUA.getValueAt(i, 0)).setPreamble(false);
-          tblUA.repaint();
-        }
+        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setAction(taUAInput.getText());
+        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setPreamble(false);
+        tblUA.repaint();
         updateUAChkBox();
       }
     });
@@ -1344,7 +1355,10 @@ public class Main extends JFrame {
     panelUA.add(chckbxAppearPreAmble);
 
     /* Action Table */
-    tblUA = new JTable(new NodeTableModel(null));
+    tblUA = new JTable(new NodeTableModel());
+    TableRowSorter<NodeTableModel> sorter =
+        new TableRowSorter<NodeTableModel>((NodeTableModel) tblUA.getModel());
+    tblUA.setRowSorter(sorter);
     tblUA.setDefaultRenderer(Node.class, new UACell());
     tblUA.setDefaultEditor(Node.class, new UACell());
     tblUA.setRowHeight(30);
@@ -1354,6 +1368,11 @@ public class Main extends JFrame {
       @Override
       public void valueChanged(ListSelectionEvent arg0) {
         updateUAInput();
+        if (tblUA.getSelectedRow() == -1) {
+          taUAInput.setEnabled(false);
+        } else {
+          taUAInput.setEnabled(true);
+        }
       }
     });
     tblUA.setFillsViewportHeight(true);
@@ -1370,18 +1389,32 @@ public class Main extends JFrame {
     taUAInput.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
     taUAInput.setWrapStyleWord(true);
     taUAInput.setLineWrap(true);
+    taUAInput.setEnabled(false);
     taUAInput.addKeyListener(new KeyAdapter() {
       @Override
       public void keyReleased(KeyEvent e) {
         updateUAChkBox();
-        for (int i : tblUA.getSelectedRows()) {
-          String[] uaData = userActions.get(tblUA.getValueAt(i, 0));
-          uaData[0] = taUAInput.getText();
-          uaData[1] = Boolean.toString(chckbxAppearPreAmble.isSelected());
-          ((Node) tblUA.getValueAt(i, 0)).setAction(taUAInput.getText());
-          ((Node) tblUA.getValueAt(i, 0)).setPreamble(false);
-          tblUA.repaint();
+        Node tblNode = (Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0);
+        if (userActions.contains(tblNode)) {
+          for (Node n : userActions) {
+            if (n.equalsSimple(tblNode)) {
+              n.setAction(taUAInput.getText());
+              n.setPreamble(chckbxAppearPreAmble.isSelected());
+              if (taUAInput.getText().equals("")) {
+                userActions.remove(n);
+              }
+            }
+          }
+        } else {
+          for (Node n : allNodes) {
+            if (n.equalsSimple(tblNode)) {
+              n.setAction(taUAInput.getText());
+              n.setPreamble(chckbxAppearPreAmble.isSelected());
+              userActions.add(n);
+            }
+          }
         }
+        tblUA.repaint();
         updateUAChkBox();
       }
     });
@@ -1400,8 +1433,10 @@ public class Main extends JFrame {
     lblSelectNOI.setBounds(10, 11, 191, 22);
     panelNOI.add(lblSelectNOI);
 
-    /* NOI Table */
-    tblNOI = new JTable(new NodeTableModel(null));
+    tblNOI = new JTable(new NodeTableModel());
+    TableRowSorter<NodeTableModel> sorter =
+        new TableRowSorter<NodeTableModel>((NodeTableModel) tblNOI.getModel());
+    tblNOI.setRowSorter(sorter);
     tblNOI.setDefaultRenderer(Node.class, new NOICell());
     tblNOI.setDefaultEditor(Node.class, new NOICell());
     tblNOI.setRowHeight(30);
@@ -1421,7 +1456,6 @@ public class Main extends JFrame {
     btnRemoveNOI.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         for (int i : tblNOI.getSelectedRows()) {
-          chosenNOIs.remove((Node) tblNOI.getValueAt(i, 0));
           ((Node) tblNOI.getValueAt(i, 0)).setNoi(false);
           tblNOI.repaint();
         }
@@ -1435,10 +1469,15 @@ public class Main extends JFrame {
     btnAddNOI.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         for (int i : tblNOI.getSelectedRows()) {
-          chosenNOIs.add((Node) tblNOI.getValueAt(i, 0));
-          ((Node) tblNOI.getValueAt(i, 0)).setNoi(true);
-          tblNOI.repaint();
+          for (Node n : allNodes) {
+            Node tblNode = ((Node) tblNOI.getValueAt(i, 0));
+            if (n.equalsSimple(tblNode)) {
+              n.setNoi(true);
+              n.setCp(false);
+            }
+          }
         }
+        tblNOI.repaint();
       }
     });
     btnAddNOI.setBounds(684, 542, 200, 60);
@@ -1461,6 +1500,7 @@ public class Main extends JFrame {
     tblTCs.setDefaultRenderer(TestCase.class, new TestCaseCell());
     tblTCs.setDefaultEditor(TestCase.class, new TestCaseCell());
     tblTCs.setRowHeight(60);
+    tblTCs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     tblTCs.setTableHeader(null);
     JScrollPane scrollPane = new JScrollPane();
     scrollPane.setBounds(10, 33, 340, 507);
@@ -1478,8 +1518,9 @@ public class Main extends JFrame {
     tblTP.setModel(new TestPathModel(null));
     tblTP.setDefaultRenderer(TestCase.class, new TestPathCell());
     tblTP.setDefaultEditor(TestCase.class, new TestPathCell());
-    tblTP.setTableHeader(null);
     tblTP.setRowHeight(60);
+    tblTP.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    tblTP.setTableHeader(null);
     JScrollPane scrollPane2 = new JScrollPane();
     scrollPane2.setBounds(360, 33, 756, 507);
     scrollPane2.setViewportView(tblTP);
@@ -1602,8 +1643,12 @@ public class Main extends JFrame {
         endingBlocks.add(n.getBlockIndex());
       }
     }
+    System.out.println("STARTING BLOCKS: " + startingBlocks);
+    System.out.println("ENDING BLOCKS: " + endingBlocks);
     for (Node n : chosenNOIs) {
-      noiBlocks.add(n.getBlockIndex());
+      if (n.isNoi()) {
+        noiBlocks.add(n.getBlockIndex());
+      }
     }
     StringBuilder sb = new StringBuilder();
     for (int i : startingBlocks) {

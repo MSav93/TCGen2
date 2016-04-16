@@ -6,7 +6,7 @@ import java.util.Arrays;
 
 public final class Constants {
 
-  public static final String version = "0.1";
+  public static final String version = "0.2";
 
   public static final String noiTabName = "Nodes of Interest";
 
@@ -33,21 +33,33 @@ public final class Constants {
   // 8 spaces
   public static final String tabSpacing = "        ";
 
+  public static final ArrayList<String> acceptedCPBehaviourTypes = new ArrayList<String>(
+      Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT", "EXTERNAL-INPUT", "EVENT"));
+  
+  public static final ArrayList<String> acceptedNOIBehaviourTypes = new ArrayList<String>(
+      Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
+  
   public static final ArrayList<String> acceptedORBehaviourTypes = new ArrayList<String>(
       Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
 
   public static final ArrayList<String> acceptedUABehaviourTypes =
       new ArrayList<String>(Arrays.asList("EXTERNAL-INPUT", "EVENT"));
   
+  public static final ArrayList<String> acceptedCPFlags =
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", "MAY", "START NEW", ""));
+  
+  public static final ArrayList<String> acceptedNOIFlags =
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", "MAY", "START NEW", ""));
+  
   public static final ArrayList<String> acceptedUAFlags =
-      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", ""));
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", "MAY", "START NEW", ""));
   
   public static final ArrayList<String> acceptedORFlags =
-      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", ""));
+      new ArrayList<String>(Arrays.asList("KILL", "SYNCHRONISATION", "MAY", "START NEW", ""));
 
   public static final ArrayList<String> nodeFlags =
-      new ArrayList<String>(Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISATION"));
+      new ArrayList<String>(Arrays.asList("REVERSION", "REFERENCE", "KILL", "SYNCHRONISE", "MAY", "START NEW"));
 
   public static final ArrayList<String> nodeFlagSymbols =
-      new ArrayList<String>(Arrays.asList("^", "=>", "--", "="));
+      new ArrayList<String>(Arrays.asList("^", "=>", "--", "=", "%", "^^"));
 }
