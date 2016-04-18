@@ -62,6 +62,7 @@ import org.jdom2.output.XMLOutputter;
 import com.SBCLPipe;
 
 import other.Constants;
+import other.HTMLFormWriter;
 import other.TestCase;
 import table.CPCell;
 import table.CPFilter;
@@ -143,6 +144,11 @@ public class Main extends JFrame {
   private String btXML;
   private String btFilePath;
   private Node initialNode;
+  private Set<Node> selectedNOIs = new TreeSet<Node>();
+  private Set<Node> selectedCPs = new TreeSet<Node>();
+  private Set<Node> observableResponses = new TreeSet<Node>();
+  private Set<Node> userActions = new TreeSet<Node>();
+  private ArrayList<TestCase> selectedTCs = new ArrayList<TestCase>();
 
 
   /**
@@ -151,15 +157,8 @@ public class Main extends JFrame {
   private SBCLPipe sbcl = new SBCLPipe();
   private Boolean isLoaded = false;
   private Node currentNode;
-
-  Set<Node> chosenNOIs = new TreeSet<Node>();
-  Set<Node> chosenCPs = new TreeSet<Node>();
-  Set<Node> observableResponses = new TreeSet<Node>();
-  Set<Node> userActions = new TreeSet<Node>();
-  ArrayList<TestCase> selectedTCs = new ArrayList<TestCase>();
-
   private Set<Node> allNodes = new TreeSet<Node>();
-
+  private File loadedFile;
   private static final long serialVersionUID = 1L;
 
   /**
@@ -206,8 +205,8 @@ public class Main extends JFrame {
    * Clear all previous configurations from memory.
    */
   private void clearEverything() {
-    chosenNOIs.clear();
-    chosenCPs.clear();
+    selectedNOIs.clear();
+    selectedCPs.clear();
     observableResponses.clear();
     userActions.clear();
 
@@ -247,6 +246,7 @@ public class Main extends JFrame {
 
     populateData();
     isLoaded = true;
+    loadedFile = f;
     frame.setTitle("TP-Optimizer - " + f.getName());
   }
 
@@ -290,7 +290,7 @@ public class Main extends JFrame {
     List<Element> checkpoints = config.getChild("CP").getChildren("node");
     ArrayList<Element> checkpointsToBeRemoved = new ArrayList<Element>();
     for (Element cp : checkpoints) {
-      for (Node btNode : chosenCPs) {
+      for (Node btNode : selectedCPs) {
         if (checkElementsAttributes(cp, "cp")) {
           Node configNode = new Node(null, cp.getAttributeValue("component"),
               cp.getAttributeValue("behaviour-type"), cp.getAttributeValue("behaviour"), null,
@@ -379,7 +379,7 @@ public class Main extends JFrame {
     List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
     // recording nodes that get matched to remove later to avoid ConcurrentModificationException.
     ArrayList<Element> nodesToBeRemoved = new ArrayList<Element>();
-    for (Node btNode : chosenNOIs) {
+    for (Node btNode : selectedNOIs) {
       for (Element noi : nodesOfInterest) {
         if (checkElementsAttributes(noi, "noi")) {
           Node configNode = new Node(Integer.parseInt(noi.getAttributeValue("tag")),
@@ -656,7 +656,7 @@ public class Main extends JFrame {
    */
   private void updateCPInitial() {
     TreeSet<Node> potentialInitialCP = new TreeSet<Node>();
-    for (Node node : chosenCPs) {
+    for (Node node : selectedCPs) {
       if (node.isCp()) {
         potentialInitialCP.add(node);
       }
@@ -871,7 +871,7 @@ public class Main extends JFrame {
     config.setAttribute(new Attribute("version", Constants.version));
     config.setAttribute(new Attribute("filepath", btFilePath));
     Element noi = new Element("NOI");
-    for (Node node : chosenNOIs) {
+    for (Node node : selectedNOIs) {
       if (node.isNoi()) {
         Element nodeToAdd = new Element("node");
         nodeToAdd.setAttribute("tag", node.getTag().toString());
@@ -884,7 +884,7 @@ public class Main extends JFrame {
     }
 
     Element cp = new Element("CP");
-    for (Node node : chosenCPs) {
+    for (Node node : selectedCPs) {
       if (node.isCp()) {
         Element nodeToAdd = new Element("node");
         nodeToAdd.setAttribute("component", node.getComponent());
@@ -1177,7 +1177,7 @@ public class Main extends JFrame {
             Node tblNode = (Node) tblCP.getValueAt(i, 0);
             if (n.equalsSimple(tblNode)) {
               n.setCp(false);
-              chosenCPs.remove(n);
+              selectedCPs.remove(n);
             }
           }
           tblCP.repaint();
@@ -1198,7 +1198,7 @@ public class Main extends JFrame {
           for (Node n : allNodes) {
             if (n.equalsSimple(tblNode)) {
               n.setCp(true);
-              chosenCPs.add(n);
+              selectedCPs.add(n);
             }
           }
           tblCP.repaint();
@@ -1345,8 +1345,7 @@ public class Main extends JFrame {
     /* Action Checkbox */
     chckbxAppearPreAmble.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setAction(taUAInput.getText());
-        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setPreamble(false);
+        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setPreamble(chckbxAppearPreAmble.isSelected());
         tblUA.repaint();
         updateUAChkBox();
       }
@@ -1608,6 +1607,12 @@ public class Main extends JFrame {
     /* Export to HTML Button */
     JButton btnExportToHtml = new JButton("Export to HTML");
     btnExportToHtml.setBounds(869, 551, 151, 61);
+    btnExportToHtml.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent arg0) {
+        HTMLFormWriter.output(selectedTCs, loadedFile);
+      }
+    });
     panelTP.add(btnExportToHtml);
 
     return panelTP;
@@ -1635,7 +1640,7 @@ public class Main extends JFrame {
     ArrayList<Integer> noiBlocks = new ArrayList<Integer>();
     ArrayList<Integer> startingBlocks = new ArrayList<Integer>();
     ArrayList<Integer> endingBlocks = new ArrayList<Integer>();
-    for (Node n : chosenCPs) {
+    for (Node n : selectedCPs) {
       if ((n.getFlag() == "")) {
         startingBlocks.add(n.getBlockIndex());
         endingBlocks.add(n.getBlockIndex());
@@ -1645,7 +1650,7 @@ public class Main extends JFrame {
     }
     System.out.println("STARTING BLOCKS: " + startingBlocks);
     System.out.println("ENDING BLOCKS: " + endingBlocks);
-    for (Node n : chosenNOIs) {
+    for (Node n : selectedNOIs) {
       if (n.isNoi()) {
         noiBlocks.add(n.getBlockIndex());
       }
