@@ -1,4 +1,3 @@
-import java.awt.Desktop;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Toolkit;
@@ -11,7 +10,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -773,37 +771,6 @@ public class Main extends JFrame {
   }
 
   /**
-   * Open folder containing test cases.
-   */
-  private void openFolder() {
-    String path =
-        System.getProperty("user.dir") + System.getProperty("file.separator") + "test-cases";
-    Path thePath = Paths.get(path);
-    if (Files.exists(thePath)) {
-      try {
-        Desktop.getDesktop().open(new File(path));
-      } catch (IOException e) {
-        printErrorMessage("error|8");
-        e.printStackTrace();
-      }
-    } else {
-      boolean success = (new File(path)).mkdirs();
-      if (!success) {
-        // Directory creation failed
-        printErrorMessage("error|7");
-      } else {
-        try {
-          Desktop.getDesktop().open(new File(System.getProperty("user.dir")
-              + System.getProperty("file.separator") + "test-cases"));
-        } catch (IOException e1) {
-          printErrorMessage("error|8");
-          e1.printStackTrace();
-        }
-      }
-    }
-  }
-
-  /**
    * Populate test case configuration in TCC file format.
    */
 
@@ -1088,7 +1055,7 @@ public class Main extends JFrame {
      */
     btnGenerateTestCases = new JButton("Generate Test Cases");
     btnGenerateTestCases.setEnabled(false);
-    btnGenerateTestCases.setBounds(72, 59, 281, 51);
+    btnGenerateTestCases.setBounds(196, 59, 281, 51);
     btnGenerateTestCases.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         selectedTCs.clear();
@@ -1115,7 +1082,7 @@ public class Main extends JFrame {
      */
     btnSpare = new JButton("Spare Button (Does Nothing)");
     btnSpare.setEnabled(false);
-    btnSpare.setBounds(425, 59, 281, 51);
+    btnSpare.setBounds(673, 59, 281, 51);
     btnSpare.setEnabled(false);
     btnSpare.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
@@ -1123,15 +1090,6 @@ public class Main extends JFrame {
       }
     });
     contentPane.add(btnSpare);
-
-    JButton btnOpenTestCase = new JButton("Open Test Case Folder");
-    btnOpenTestCase.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent arg0) {
-        openFolder();
-      }
-    });
-    btnOpenTestCase.setBounds(778, 59, 301, 51);
-    contentPane.add(btnOpenTestCase);
   }
 
   private JPanel createCPTab() {
@@ -1502,14 +1460,14 @@ public class Main extends JFrame {
     tblTCs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     tblTCs.setTableHeader(null);
     JScrollPane scrollPane = new JScrollPane();
-    scrollPane.setBounds(10, 33, 340, 507);
+    scrollPane.setBounds(10, 33, 340, 588);
     scrollPane.setViewportView(tblTCs);
     panelTP.add(scrollPane);
 
     /* Current Test Path Label */
     JLabel lblCurrentTestPath = new JLabel("Current Test Path");
     lblCurrentTestPath.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblCurrentTestPath.setBounds(360, 11, 299, 22);
+    lblCurrentTestPath.setBounds(566, 11, 299, 22);
     panelTP.add(lblCurrentTestPath);
 
     /* Current Test Path Table */
@@ -1521,13 +1479,13 @@ public class Main extends JFrame {
     tblTP.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     tblTP.setTableHeader(null);
     JScrollPane scrollPane2 = new JScrollPane();
-    scrollPane2.setBounds(360, 33, 756, 507);
+    scrollPane2.setBounds(566, 33, 550, 588);
     scrollPane2.setViewportView(tblTP);
     panelTP.add(scrollPane2);
 
     /* Help Button */
     JButton btnHelp = new JButton("Help");
-    btnHelp.setBounds(104, 551, 151, 61);
+    btnHelp.setBounds(383, 353, 151, 61);
     btnHelp.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent arg0) {
@@ -1568,12 +1526,12 @@ public class Main extends JFrame {
         updateTblTp();
       }
     });
-    btnAddTestCase.setBounds(359, 551, 151, 61);
+    btnAddTestCase.setBounds(383, 77, 151, 61);
     panelTP.add(btnAddTestCase);
 
     /* Undo Button */
     JButton btnUndo = new JButton("Undo");
-    btnUndo.setBounds(614, 551, 151, 61);
+    btnUndo.setBounds(383, 215, 151, 61);
     btnUndo.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
@@ -1606,7 +1564,7 @@ public class Main extends JFrame {
 
     /* Export to HTML Button */
     JButton btnExportToHtml = new JButton("Export to HTML");
-    btnExportToHtml.setBounds(869, 551, 151, 61);
+    btnExportToHtml.setBounds(383, 491, 151, 61);
     btnExportToHtml.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent arg0) {
