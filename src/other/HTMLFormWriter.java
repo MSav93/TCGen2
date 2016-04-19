@@ -146,6 +146,7 @@ public class HTMLFormWriter {
   }
 
   private static void addTableRows(ArrayList<TestCase> selectedTCs) {
+    boolean firstPass = true;
     for (int i = 0; i < selectedTCs.size(); i++) {
       TestCase tc = selectedTCs.get(i);
       String cellClass = "tg-yw41";
@@ -154,15 +155,16 @@ public class HTMLFormWriter {
       }
       html.append("  <tr>\r\n    <td class=\"" + cellClass + "\">" + i + "</td>\r\n"
           + "    <td class=\"" + cellClass + "\">");
-      html.append(getNodeList(tc).toString());
+      html.append(getNodeList(tc, firstPass).toString());
       html.append("</td>\r\n" + "    <td class=\"" + cellClass + "\">");
-      html.append(getUserActions(tc).toString());
+      html.append(getUserActions(tc, firstPass).toString());
       html.append("</td>\r\n" + "    <td class=\"" + cellClass + "\">");
-      html.append(getObservables(tc).toString());
+      html.append(getObservables(tc, firstPass).toString());
       html.append("</td>\r\n" + "    <td class=\"" + cellClass + "\">");
-      html.append(getNodesOfInterest(tc).toString());
+      html.append(getNodesOfInterest(tc, firstPass).toString());
       html.append("</td>\r\n" + "    <td class=\"" + cellClass + "\"></td>\r\n" + "    <td class=\""
           + cellClass + "\"></td>\r\n" + "  </tr>");
+      firstPass = false;
     }
   }
 
@@ -190,39 +192,55 @@ public class HTMLFormWriter {
     return preamble;
   }
 
-  private static StringBuilder getNodesOfInterest(TestCase tc) {
+  private static StringBuilder getNodesOfInterest(TestCase tc, boolean includeFirstNode) {
     StringBuilder nois = new StringBuilder();
     for (Node node : tc.getNodeSteps()) {
-      if (node.isNoi()) {
-        nois.append(node.toString() + "<br>");
+      if (includeFirstNode) {
+        if (node.isNoi()) {
+          nois.append(node.toString() + "<br>");
+        }
+      } else {
+        includeFirstNode = true;
       }
     }
     return nois;
   }
 
-  private static StringBuilder getObservables(TestCase tc) {
+  private static StringBuilder getObservables(TestCase tc, boolean includeFirstNode) {
     StringBuilder observables = new StringBuilder();
     for (Node node : tc.getNodeSteps()) {
-      if (!node.getObservable().equals("")) {
-        observables.append("[" + node.getTag() + "] " + node.getObservable() + "<br>");
+      if (includeFirstNode) {
+        if (!node.getObservable().equals("")) {
+          observables.append("[" + node.getTag() + "] " + node.getObservable() + "<br>");
+        }
+      } else {
+        includeFirstNode = true;
       }
     }
     return observables;
   }
 
-  private static StringBuilder getNodeList(TestCase tc) {
+  private static StringBuilder getNodeList(TestCase tc, boolean includeFirstNode) {
     StringBuilder nodes = new StringBuilder();
     for (Node node : tc.getNodeSteps()) {
-      nodes.append(node.toString() + "<br>");
+      if (includeFirstNode) {
+        nodes.append(node.toString() + "<br>");
+      } else {
+        includeFirstNode = true;
+      }
     }
     return nodes;
   }
 
-  private static StringBuilder getUserActions(TestCase tc) {
+  private static StringBuilder getUserActions(TestCase tc, boolean includeFirstNode) {
     StringBuilder actions = new StringBuilder();
     for (Node node : tc.getNodeSteps()) {
-      if (!node.getAction().equals("") && !node.isPreamble()) {
-        actions.append("[" + node.getTag() + "] " + node.getAction() + "<br>");
+      if (includeFirstNode) {
+        if (!node.getAction().equals("") && !node.isPreamble()) {
+          actions.append("[" + node.getTag() + "] " + node.getAction() + "<br>");
+        }
+      } else {
+        includeFirstNode = true;
       }
     }
     return actions;

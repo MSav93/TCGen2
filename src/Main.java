@@ -1,4 +1,5 @@
 import java.awt.EventQueue;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -78,6 +79,8 @@ import table.UAFilter;
 import tree.Block;
 import tree.Node;
 import util.BTModelReader;
+import javax.swing.border.LineBorder;
+import java.awt.Color;
 
 public class Main extends JFrame {
 
@@ -128,7 +131,8 @@ public class Main extends JFrame {
    */
   private JTable tblTCs;
   private JTable tblTP;
-
+  private JLabel lblCurrentNode2;
+  
   /**
    * Maps to store info about BT Model
    */
@@ -288,7 +292,7 @@ public class Main extends JFrame {
     List<Element> checkpoints = config.getChild("CP").getChildren("node");
     ArrayList<Element> checkpointsToBeRemoved = new ArrayList<Element>();
     for (Element cp : checkpoints) {
-      for (Node btNode : selectedCPs) {
+      for (Node btNode : allNodes) {
         if (checkElementsAttributes(cp, "cp")) {
           Node configNode = new Node(null, cp.getAttributeValue("component"),
               cp.getAttributeValue("behaviour-type"), cp.getAttributeValue("behaviour"), null,
@@ -296,6 +300,7 @@ public class Main extends JFrame {
           if (configNode.equalsSimple(btNode)) {
             // Selects this node as a CP
             btNode.setCp(true);
+            selectedCPs.add(btNode);
             // Remove node from remaining list of unmatched nodes
             checkpointsToBeRemoved.add(cp);
             // break;
@@ -329,7 +334,7 @@ public class Main extends JFrame {
     List<Element> observables = config.getChild("OR").getChildren();
     ArrayList<Element> observablesToBeRemoved = new ArrayList<Element>();
     for (Element or : observables) {
-      for (Node btNode : observableResponses) {
+      for (Node btNode : allNodes) {
         if (checkElementsAttributes(or, "or")) {
           Node xmlNode = new Node(Integer.parseInt(or.getAttributeValue("tag")),
               or.getAttributeValue("component"), or.getAttributeValue("behaviour-type"),
@@ -353,7 +358,7 @@ public class Main extends JFrame {
     List<Element> actions = config.getChild("UA").getChildren();
     ArrayList<Element> actionsToBeRemoved = new ArrayList<Element>();
     for (Element ua : actions) {
-      for (Node btNode : userActions) {
+      for (Node btNode : allNodes) {
         if (checkElementsAttributes(ua, "ua")) {
           Node xmlNode = new Node(Integer.parseInt(ua.getAttributeValue("tag")),
               ua.getAttributeValue("component"), ua.getAttributeValue("behaviour-type"),
@@ -377,7 +382,7 @@ public class Main extends JFrame {
     List<Element> nodesOfInterest = config.getChild("NOI").getChildren();
     // recording nodes that get matched to remove later to avoid ConcurrentModificationException.
     ArrayList<Element> nodesToBeRemoved = new ArrayList<Element>();
-    for (Node btNode : selectedNOIs) {
+    for (Node btNode : allNodes) {
       for (Element noi : nodesOfInterest) {
         if (checkElementsAttributes(noi, "noi")) {
           Node configNode = new Node(Integer.parseInt(noi.getAttributeValue("tag")),
@@ -745,11 +750,11 @@ public class Main extends JFrame {
     }
     for (int i = 0; i < tblTCs.getRowCount(); i++) {
       TestCase tc = (TestCase) tblTCs.getValueAt(i, 0);
-      if (!(tc.getStartNode().getBlockIndex() == currentNode.getBlockIndex())) {
+      if (!(tc.getStartBlock() == currentNode.getBlockIndex())) {
         ArrayList<Integer> blocks = calcTotalTestCaseSteps(currentNode, tc);
         if (blocks != null) {
-          if (blocks.size() == 1 && blocks.get(0) == tc.getStartNode().getBlockIndex()) {
-            blocks.add(tc.getStartNode().getBlockIndex());
+          if (blocks.size() == 1 && blocks.get(0) == tc.getStartBlock()) {
+            blocks.add(tc.getStartBlock());
             tc.setStepsAway(blocks, getNodeList(blocks));
           } else {
             tc.setStepsAway(blocks, getNodeList(blocks));
@@ -1066,6 +1071,7 @@ public class Main extends JFrame {
           if (testCases.size() > 0) {
             populateTPTab(testCases);
             tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.joiningTabName), true);
+            lblCurrentNode2.setText(initialNode.toString());
           } else {
             JOptionPane.showMessageDialog(null, "No test cases generated.");
           }
@@ -1254,7 +1260,7 @@ public class Main extends JFrame {
       public void keyReleased(KeyEvent arg0) {
         Node tblNode = (Node) tblOR.getValueAt(tblOR.getSelectedRow(), 0);
         if (observableResponses.contains(tblNode)) {
-          for (Node n : observableResponses) {
+          for (Node n : allNodes) {
             if (n.equalsSimple(tblNode)) {
               n.setObservable(taORInput.getText());
               if (taORInput.getText().equals("")) {
@@ -1303,7 +1309,8 @@ public class Main extends JFrame {
     /* Action Checkbox */
     chckbxAppearPreAmble.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
-        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0)).setPreamble(chckbxAppearPreAmble.isSelected());
+        ((Node) tblUA.getValueAt(tblUA.getSelectedRow(), 0))
+            .setPreamble(chckbxAppearPreAmble.isSelected());
         tblUA.repaint();
         updateUAChkBox();
       }
@@ -1464,10 +1471,27 @@ public class Main extends JFrame {
     scrollPane.setViewportView(tblTCs);
     panelTP.add(scrollPane);
 
+    /* Current Node Label */
+    JLabel lblCurrentNode = new JLabel("Current Node:");
+    lblCurrentNode.setFont(new Font("Tahoma", Font.PLAIN, 18));
+    lblCurrentNode.setBounds(566, 11, 299, 22);
+    panelTP.add(lblCurrentNode);
+
+    lblCurrentNode2 = new JLabel("Current Node");
+    lblCurrentNode2.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
+
+    /* Current Node Panel */
+    JPanel pnlCurrentNode = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    pnlCurrentNode.setBorder(new LineBorder(new Color(0, 0, 0)));
+    pnlCurrentNode.add(lblCurrentNode2);
+    pnlCurrentNode.setBackground(Constants.notSelectedColour);
+    pnlCurrentNode.setBounds(566, 33, 550, 61);
+    panelTP.add(pnlCurrentNode);
+
     /* Current Test Path Label */
-    JLabel lblCurrentTestPath = new JLabel("Current Test Path");
+    JLabel lblCurrentTestPath = new JLabel("Current Test Path:");
     lblCurrentTestPath.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblCurrentTestPath.setBounds(566, 11, 299, 22);
+    lblCurrentTestPath.setBounds(566, 105, 299, 22);
     panelTP.add(lblCurrentTestPath);
 
     /* Current Test Path Table */
@@ -1479,7 +1503,7 @@ public class Main extends JFrame {
     tblTP.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     tblTP.setTableHeader(null);
     JScrollPane scrollPane2 = new JScrollPane();
-    scrollPane2.setBounds(566, 33, 550, 588);
+    scrollPane2.setBounds(566, 138, 550, 483);
     scrollPane2.setViewportView(tblTP);
     panelTP.add(scrollPane2);
 
@@ -1506,13 +1530,13 @@ public class Main extends JFrame {
       public void actionPerformed(ActionEvent e) {
         TestCase tc = (TestCase) tblTCs.getValueAt(tblTCs.getSelectedRow(), 0);
         System.out.println("Test Case: " + tc);
-        if (tc.getStartNode().equals(currentNode)) {
+        if (lastNodeOfBlock(tc.getStartBlock()).equals(currentNode)) {
           System.out.println("No Preamble needed");
         } else {
           if (tc.getBlocksAway().size() > 0) {
             System.out.println("Preamble generated");
             List<Integer> preAmbleBlocks = tc.getBlocksAway();
-            preAmbleBlocks.add(tc.getStartNode().getBlockIndex());
+            preAmbleBlocks.add(tc.getStartBlock());
             TestCase preAmble = new TestCase(preAmbleBlocks, getNodeList(preAmbleBlocks));
             preAmble.setPreAmble(true);
             System.out.println("PREAMBLE: " + preAmble);
@@ -1522,6 +1546,7 @@ public class Main extends JFrame {
         selectedTCs.add(tc);
         tc.setSelected(true);
         currentNode = tc.getEndNode();
+        lblCurrentNode2.setText(currentNode.toString());
         updateTblTCs();
         updateTblTp();
       }
@@ -1723,6 +1748,11 @@ public class Main extends JFrame {
         JOptionPane.showMessageDialog(null, "Other error.\r\n" + errorMessage);
         break;
     }
+  }
+
+  private Node lastNodeOfBlock(Integer blockIndex) {
+    return indexToNodesMap.get(blockIndex).getNodes()
+        .get(indexToNodesMap.get(blockIndex).getNodes().size() - 1);
   }
 
   private String connectToServer() {

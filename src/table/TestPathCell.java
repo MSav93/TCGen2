@@ -68,7 +68,7 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
   }
 
   protected String getCellText() {
-    return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>TargetNode:</b> "
+    return "<html><b>Start Node:</b> " + testCase.getLastNodeOfStartingBlock() + "<br><b>End Node:</b> "
         + testCase.getEndNode() + "<br><b>Steps Involved:</b> " + (testCase.getNodeLength() - 1) + "</html>";
   }
 

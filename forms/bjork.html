@@ -1,0 +1,153 @@
+<html>
+<head>
+<title>ATM150508.btc</title>
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;border-color:#aabcfe;margin:0px auto;}
+.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 20px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#669;background-color:#e8edff;}
+.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 20px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#039;background-color:#b9c9fe;}
+.tg .tg-yw4l{vertical-align:top}
+.tg .tg-pre{background-color:#ffffc7;vertical-align:top}
+</style>
+</head>
+<body><body>
+<table class="tg">  <tr>
+    <th colspan="2" class="tg-031e">Associated Test Cases</th>    <th colspan="5" class="tg-031e">Preamble</th></tr>
+<tr><td colspan="2" class="tg-yw4l">[10]</td>
+<td colspan="5" class="tg-yw4l">Ensure that the card has an account with a balance less than the maximum allowed withdrawal amount, and select that account and the maximum amount when prompted.</td>
+</tr>
+<tr><td colspan="2" class="tg-yw4l">[3, 11]</td>
+<td colspan="5" class="tg-yw4l">Ensure that the cards has an acount with a balance exceeding the minimum withdrawal amount, and select that account and amount when prompted</td>
+</tr>
+<tr><td colspan="2" class="tg-yw4l">[14]</td>
+<td colspan="5" class="tg-yw4l">Use a card that does not have all account types and, when prompted, select an account type that is not linked to the card.</td>
+</tr>
+  <tr>
+    <th class="tg-031e">Test Case ID</th>
+    <th class="tg-yw4l">Node List</th>
+    <th class="tg-yw4l">User Actions</th>
+    <th class="tg-yw4l">Expected Observable Response</th>
+    <th class="tg-yw4l">Nodes Of Interest</th>
+    <th class="tg-yw4l">Pass / Fail</th>
+    <th class="tg-yw4l">Remarks</th>
+  </tr>  <tr>
+    <td class="tg-yw41">0</td>
+    <td class="tg-yw41">[1] ATM: Ready[STATE-REALISATION]<br>[2] Reader: acceptCard[EXTERNAL-INPUT]<br>[3] ATM: PerformTransaction[STATE-REALISATION]<br>[4] Display: ShowTransTypes[STATE-REALISATION]<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[1] system waiting for card to be entered<br>[4] display shows menu of transaction types<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">1</td>
+    <td class="tg-yw41">[5] Customer: withdraw[EVENT]<br>[6] Display: ShowAccTypes[STATE-REALISATION]<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[6] display shows menu of account types<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">2</td>
+    <td class="tg-yw41">[7] Console: getAccount[EXTERNAL-INPUT]<br>[8] Display: ShowWdAmounts[STATE-REALISATION]<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[8] display shows menu of withdrawal amounts<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">3</td>
+    <td class="tg-yw41">[9] Console: getAmount[EXTERNAL-INPUT]<br>[10] Coms: withdrawal[EXTERNAL-OUTPUT]<br>[11] Coms: okWithdrawal[EXTERNAL-INPUT]<br>[12] Printer: wdReceipt[EXTERNAL-OUTPUT]<br>[13] Display: AnotherTransaction?[STATE-REALISATION]<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[12] printed receipt shows withdrawal details, including the account, ammount and new balance<br>[13] display asks if another transaction wanted<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">4</td>
+    <td class="tg-yw41">[16] Customer: no[EVENT]<br>[17] Reader: ejectCard[EXTERNAL-INPUT]<br>[18] ATM: Ready[STATE-REALISATION] ^<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[17] card gets ejected<br>[18] system waiting for card to be entered<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-pre">5</td>
+    <td class="tg-pre">[2] Reader: acceptCard[EXTERNAL-INPUT]<br>[3] ATM: PerformTransaction[STATE-REALISATION]<br>[4] Display: ShowTransTypes[STATE-REALISATION]<br>[5] Customer: withdraw[EVENT]<br>[6] Display: ShowAccTypes[STATE-REALISATION]<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre">[4] display shows menu of transaction types<br>[6] display shows menu of account types<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">6</td>
+    <td class="tg-yw41">[27] Customer: cancel[EVENT]<br>[28] Display: AnotherTransaction?[STATE-REALISATION] =><br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[28] display asks if another transaction wanted<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-pre">7</td>
+    <td class="tg-pre">[14] Customer: yes[EVENT]<br>[15] ATM: PerformTransaction[STATE-REALISATION] ^<br>[4] Display: ShowTransTypes[STATE-REALISATION]<br>[5] Customer: withdraw[EVENT]<br>[6] Display: ShowAccTypes[STATE-REALISATION]<br>[7] Console: getAccount[EXTERNAL-INPUT]<br>[8] Display: ShowWdAmounts[STATE-REALISATION]<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre">[4] display shows menu of transaction types<br>[6] display shows menu of account types<br>[8] display shows menu of withdrawal amounts<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">8</td>
+    <td class="tg-yw41">[29] Customer: cancel[EVENT] =><br>[28] Display: AnotherTransaction?[STATE-REALISATION] =><br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[28] display asks if another transaction wanted<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-pre">9</td>
+    <td class="tg-pre">[14] Customer: yes[EVENT]<br>[15] ATM: PerformTransaction[STATE-REALISATION] ^<br>[4] Display: ShowTransTypes[STATE-REALISATION]<br>[5] Customer: withdraw[EVENT]<br>[6] Display: ShowAccTypes[STATE-REALISATION]<br>[7] Console: getAccount[EXTERNAL-INPUT]<br>[8] Display: ShowWdAmounts[STATE-REALISATION]<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre">[4] display shows menu of transaction types<br>[6] display shows menu of account types<br>[8] display shows menu of withdrawal amounts<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">10</td>
+    <td class="tg-yw41">[9] Console: getAmount[EXTERNAL-INPUT]<br>[10] Coms: withdrawal[EXTERNAL-OUTPUT]<br>[19] Coms: insufficientFunds[EXTERNAL-INPUT]<br>[20] Display: errorInsufficientFunds[STATE-REALISATION]<br>[21] Display: ShowWdAmounts[STATE-REALISATION] ^<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[20] error shown (insufficient funds)<br>[21] display shows menu of withdrawal amounts<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-pre">11</td>
+    <td class="tg-pre">[9] Console: getAmount[EXTERNAL-INPUT]<br>[10] Coms: withdrawal[EXTERNAL-OUTPUT]<br>[11] Coms: okWithdrawal[EXTERNAL-INPUT]<br>[12] Printer: wdReceipt[EXTERNAL-OUTPUT]<br>[13] Display: AnotherTransaction?[STATE-REALISATION]<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre">[12] printed receipt shows withdrawal details, including the account, ammount and new balance<br>[13] display asks if another transaction wanted<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">12</td>
+    <td class="tg-yw41">[14] Customer: yes[EVENT]<br>[15] ATM: PerformTransaction[STATE-REALISATION] ^<br>[4] Display: ShowTransTypes[STATE-REALISATION]<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[4] display shows menu of transaction types<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr>  <tr>
+    <td class="tg-pre">13</td>
+    <td class="tg-pre">[5] Customer: withdraw[EVENT]<br>[6] Display: ShowAccTypes[STATE-REALISATION]<br>[7] Console: getAccount[EXTERNAL-INPUT]<br>[8] Display: ShowWdAmounts[STATE-REALISATION]<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre">[6] display shows menu of account types<br>[8] display shows menu of withdrawal amounts<br></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+    <td class="tg-pre"></td>
+  </tr>  <tr>
+    <td class="tg-yw41">14</td>
+    <td class="tg-yw41">[9] Console: getAmount[EXTERNAL-INPUT]<br>[10] Coms: withdrawal[EXTERNAL-OUTPUT]<br>[22] Coms: noSuchAccount[EXTERNAL-INPUT]<br>[23] Display: noSuchAccount[STATE-REALISATION]<br>[24] Display: ShowAccTypes[STATE-REALISATION] ^<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41">[23] error shown (no such account)<br>[24] display shows menu of account types<br></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+    <td class="tg-yw41"></td>
+  </tr></table>
+<body>

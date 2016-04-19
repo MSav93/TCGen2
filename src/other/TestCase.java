@@ -10,7 +10,6 @@ public class TestCase {
   private ArrayList<Integer> blockList;
   private int index;
   private ArrayList<Node> nodeList;
-  private Node startNode;
   private Node endNode;
   private List<Integer> blocksAway = new ArrayList<Integer>();
   private ArrayList<Node> nodesAway = new ArrayList<Node>();
@@ -21,7 +20,6 @@ public class TestCase {
   public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam) {
     this.blockList = new ArrayList<Integer>(blockListParam);
     this.nodeList = new ArrayList<Node>(nodeListParam);
-    this.startNode = nodeList.get(0);
     this.endNode = nodeList.get(nodeList.size() - 1);
 
   }
@@ -46,17 +44,13 @@ public class TestCase {
     return nodeList.size();
   }
 
-  public Node getStartNode() {
-    return startNode;
-  }
-
   public Node getEndNode() {
     return endNode;
   }
 
   public void setStepsAway(List<Integer> list, ArrayList<Node> nodesAwayParam) {
     if (list != null) {
-      isReachable= true;
+      isReachable = true;
       blocksAway = list;
       nodesAway = nodesAwayParam;
     } else {
@@ -106,5 +100,21 @@ public class TestCase {
 
   public boolean isPreAmble() {
     return this.preAmble;
+  }
+
+  public Integer getStartBlock() {
+    return blockList.get(0);
+  }
+
+  public Node getLastNodeOfStartingBlock() {
+    Node n = nodeList.get(0);
+    for (int i = 0; i < nodeList.size(); i++) {
+      if (nodeList.get(i).getBlockIndex() == blockList.get(0)) {
+        n = nodeList.get(i);
+      } else {
+        return n;
+      }
+    }
+    return n;
   }
 }

@@ -40,7 +40,7 @@ public final class Constants {
       Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
   
   public static final ArrayList<String> acceptedORBehaviourTypes = new ArrayList<String>(
-      Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
+      Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT", "EXTERNAL-INPUT"));
 
   public static final ArrayList<String> acceptedUABehaviourTypes =
       new ArrayList<String>(Arrays.asList("EXTERNAL-INPUT", "EVENT"));

@@ -102,7 +102,7 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
   }
 
   private String getCellText() {
-    return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>TargetNode:</b> "
+    return "<html><b>Start Node:</b> " + testCase.getLastNodeOfStartingBlock() + "<br><b>End Node:</b> "
         + testCase.getEndNode() + "<br><b>Nodes Away:</b> "
         + (!testCase.isReachable() ? "?" : testCase.getNodesAwayLength()) + Constants.htmlTabSpacing
         + "<b>Nodes Involved:</b> " + testCase.getNodeLength() + "</html>";
