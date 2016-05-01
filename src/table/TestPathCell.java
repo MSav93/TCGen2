@@ -27,7 +27,7 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
     text = new JLabel();
     panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     panel.add(text);
-    panel.setBackground(new Color(255, 77, 77));
+    panel.setBackground(Constants.notSelectedColour);
   }
 
   protected void updateData(TestCase testCase, boolean isSelected, JTable table) {
@@ -39,11 +39,6 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
       panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, Color.BLUE));
     } else {
       panel.setBorder(table.getBorder());
-    }
-    if (testCase.isPreAmble()) {
-      panel.setBackground(Constants.warningColour);
-    } else {
-      panel.setBackground(Constants.notSelectedColour);
     }
     panel.setToolTipText(getToolTipText());
     ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
@@ -68,32 +63,18 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
   }
 
   protected String getCellText() {
-    return "<html><b>Start Node:</b> " + testCase.getLastNodeOfStartingBlock() + "<br><b>End Node:</b> "
-        + testCase.getEndNode() + "<br><b>Steps Involved:</b> " + (testCase.getNodeLength() - 1) + "</html>";
+    return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>End Node:</b> "
+        + testCase.getFirstNodeOfEndingBlock() + "<br><b>User Actions:</b> "
+        + testCase.getUserActionsAmount() + "</html>";
   }
 
   public String getToolTipText() {
     StringBuilder sb = new StringBuilder();
-    sb.append("<html><b>Steps Involved:</b> " + testCase.getNodeLength());
+    sb.append("<html><b>Nodes Involved:</b> " + testCase.getNodeLength());
     for (Node n : testCase.getNodeSteps()) {
-      sb.append("<br>" + Constants.htmlTabSpacing + formatNode(n));
+      sb.append("<br>" + Constants.htmlTabSpacing + n.toString());
     }
     sb.append("</html>");
     return sb.toString();
-  }
-
-  private String formatNode(Node n) {
-    return "[" + n.getTag() + "] " + n.getComponent() + ": " + n.getBehaviour() + "["
-        + n.getBehaviourType() + "]" + getFlagSymbol(n.getFlag());
-  }
-
-  private String getFlagSymbol(String flag) {
-    if (!flag.equals("")) {
-      if (Constants.nodeFlags.contains(flag)) {
-        return " " + Constants.nodeFlagSymbols.get(Constants.nodeFlags.indexOf(flag));
-      }
-      return " " + flag;
-    }
-    return "";
   }
 }

@@ -2,7 +2,6 @@ package other;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import tree.Node;
 
@@ -10,25 +9,21 @@ public class TestCase {
   private ArrayList<Integer> blockList;
   private int index;
   private ArrayList<Node> nodeList;
-  private Node endNode;
-  private List<Integer> blocksAway = new ArrayList<Integer>();
-  private ArrayList<Node> nodesAway = new ArrayList<Node>();
+  ArrayList<PreAmble> possiblePreAmbles;
   private Boolean isSelected = false;
   private Boolean isReachable = true;
-  private boolean preAmble;
 
   public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam) {
     this.blockList = new ArrayList<Integer>(blockListParam);
     this.nodeList = new ArrayList<Node>(nodeListParam);
-    this.endNode = nodeList.get(nodeList.size() - 1);
-
+    this.possiblePreAmbles = new ArrayList<PreAmble>();
   }
 
   public int getIndex() {
     return index;
   }
 
-  public ArrayList<Integer> getSteps() {
+  public ArrayList<Integer> getBlocks() {
     return blockList;
   }
 
@@ -45,33 +40,20 @@ public class TestCase {
   }
 
   public Node getEndNode() {
-    return endNode;
+    return nodeList.get(nodeList.size() - 1);
   }
 
-  public void setStepsAway(List<Integer> list, ArrayList<Node> nodesAwayParam) {
+  public void addPreamble(PreAmble list) {
     if (list != null) {
       isReachable = true;
-      blocksAway = list;
-      nodesAway = nodesAwayParam;
+      possiblePreAmbles.add(list);
     } else {
       isReachable = false;
     }
   }
 
-  public List<Integer> getBlocksAway() {
-    return blocksAway;
-  }
-
-  public int getBlocksAwayLength() {
-    return blocksAway.size();
-  }
-
-  public ArrayList<Node> getNodesAway() {
-    return nodesAway;
-  }
-
-  public int getNodesAwayLength() {
-    return nodesAway.size();
+  public void clearPreAmble() {
+    possiblePreAmbles.clear();
   }
 
   public String toString() {
@@ -94,16 +76,12 @@ public class TestCase {
     this.isReachable = isReachable;
   }
 
-  public void setPreAmble(boolean preAmble) {
-    this.preAmble = preAmble;
-  }
-
-  public boolean isPreAmble() {
-    return this.preAmble;
-  }
-
   public Integer getStartBlock() {
     return blockList.get(0);
+  }
+
+  public Integer getLastBlock() {
+    return blockList.get(blockList.size() - 1);
   }
 
   public Node getLastNodeOfStartingBlock() {
@@ -116,5 +94,48 @@ public class TestCase {
       }
     }
     return n;
+  }
+
+  public Node getFirstNodeOfEndingBlock() {
+    for (int i = 0; i < nodeList.size(); i++) {
+      if (nodeList.get(i).getBlockIndex() == blockList.get(blockList.size() - 1)) {
+        return nodeList.get(i);
+      }
+    }
+    return nodeList.get(nodeList.size() - 1);
+  }
+
+  public Node getStartNode() {
+    return nodeList.get(0);
+  }
+
+  public ArrayList<Integer> getUserActionsPreamble() {
+    ArrayList<Integer> retVal = new ArrayList<Integer>();
+    for (PreAmble preAmble : possiblePreAmbles) {
+      int i = 0;
+      for (TestCase tc : preAmble) {
+        for (Node n : tc.getNodeSteps()) {
+          if (!(n.getAction().equals("") && n.isPreamble())) {
+            i++;
+          }
+        }
+      }
+      retVal.add(i);
+    }
+    return retVal;
+  }
+
+  public Integer getUserActionsAmount() {
+    int i = 0;
+    for (Node n : nodeList) {
+      if (!n.getAction().equals("")) {
+        i++;
+      }
+    }
+    return i;
+  }
+
+  public ArrayList<PreAmble> getPreAmble() {
+    return possiblePreAmbles;
   }
 }

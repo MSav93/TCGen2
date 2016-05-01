@@ -16,5 +16,4 @@ public class CPFilter extends RowFilter<NodeTableModel, Integer> {
     }
     return false;
   }
-
 }

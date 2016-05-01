@@ -1,5 +1,5 @@
+import java.awt.Color;
 import java.awt.EventQueue;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -44,6 +45,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -62,6 +64,7 @@ import com.SBCLPipe;
 
 import other.Constants;
 import other.HTMLFormWriter;
+import other.PreAmble;
 import other.TestCase;
 import table.CPCell;
 import table.CPFilter;
@@ -71,16 +74,15 @@ import table.NodeTableModel;
 import table.ORCell;
 import table.ORFilter;
 import table.TestCaseCell;
-import table.TestCasesModel;
+import table.TestCaseModel;
+import table.TestCasePreAmbleCell;
+import table.TestCasePreAmbleModel;
 import table.TestPathCell;
-import table.TestPathModel;
 import table.UACell;
 import table.UAFilter;
 import tree.Block;
 import tree.Node;
 import util.BTModelReader;
-import javax.swing.border.LineBorder;
-import java.awt.Color;
 
 public class Main extends JFrame {
 
@@ -125,6 +127,7 @@ public class Main extends JFrame {
    * Components on Nodes Of Interest tab
    */
   private JTable tblNOI;
+  private JTable tblPreAmble;
 
   /**
    * Components on the Join Test Cases tab
@@ -132,7 +135,7 @@ public class Main extends JFrame {
   private JTable tblTCs;
   private JTable tblTP;
   private JLabel lblCurrentNode2;
-  
+
   /**
    * Maps to store info about BT Model
    */
@@ -211,9 +214,12 @@ public class Main extends JFrame {
     selectedCPs.clear();
     observableResponses.clear();
     userActions.clear();
-
+    allNodes.clear();
+    selectedTCs.clear();
     indexToNodesMap.clear();
     compToBehaviourMap.clear();
+
+    tabbedPane.setEnabledAt(tabbedPane.indexOfTab(Constants.joiningTabName), false);
 
     cmbInitialState.removeAllItems();
     taUAInput.setText("");
@@ -528,18 +534,6 @@ public class Main extends JFrame {
     for (int key : indexToNodesMap.keySet()) {
       for (Node node : indexToNodesMap.get(key).getNodes()) {
         allNodes.add(node);
-        // if (Constants.acceptedCPFlags.contains(node.getFlag())) {
-        // chosenCPs.add(node);
-        // }
-        // if (Constants.acceptedNOIFlags.contains(node.getFlag())) {
-        // chosenNOIs.add(node);
-        // }
-        // if (Constants.acceptedUABehaviourTypes.contains(node.getBehaviourType())) {
-        // userActions.add(node);
-        // }
-        // if (Constants.acceptedORBehaviourTypes.contains(node.getBehaviourType())) {
-        // observableResponses.add(node);
-        // }
         if (!compToBehaviourMap.containsKey(node.getComponent())) {
           compToBehaviourMap.put(node.getComponent(), new ArrayList<Node>());
         }
@@ -738,10 +732,18 @@ public class Main extends JFrame {
     ArrayList<TestCase> testCases = new ArrayList<TestCase>();
     for (int i = 0; i < rawTestCases.size(); i++) {
       ArrayList<Integer> testCase = rawTestCases.get(i);
-      testCases.add(constructTestCase(testCase));
+      testCases.add(new TestCase(testCase, getNodeList(testCase)));
     }
-    tblTCs.setModel(new TestCasesModel(testCases));
+    ((TestCaseModel) tblTCs.getModel()).addData(testCases);
     updateTblTCs();
+  }
+
+  private ArrayList<Node> getNodeList(Collection<Integer> blocks) {
+    ArrayList<Node> nodeList = new ArrayList<Node>();
+    for (int i : blocks) {
+      nodeList.addAll(indexToNodesMap.get(i).getNodes());
+    }
+    return nodeList;
   }
 
   private void updateTblTCs() {
@@ -750,28 +752,127 @@ public class Main extends JFrame {
     }
     for (int i = 0; i < tblTCs.getRowCount(); i++) {
       TestCase tc = (TestCase) tblTCs.getValueAt(i, 0);
-      if (!(tc.getStartBlock() == currentNode.getBlockIndex())) {
-        ArrayList<Integer> blocks = calcTotalTestCaseSteps(currentNode, tc);
-        if (blocks != null) {
-          if (blocks.size() == 1 && blocks.get(0) == tc.getStartBlock()) {
-            blocks.add(tc.getStartBlock());
-            tc.setStepsAway(blocks, getNodeList(blocks));
-          } else {
-            tc.setStepsAway(blocks, getNodeList(blocks));
-          }
-        } else {
-          tc.setReachable(false);
-        }
-      } else {
+      System.out.println("TEST CASE: " + tc);
+      if (tc.getStartBlock() == currentNode.getBlockIndex()
+          || tc.getStartBlock() == convertNodeToReferencedNode(currentNode).getBlockIndex()) {
+        System.out.println("0 steps away");
         // Test Case is 0 steps away
-        tc.setStepsAway(new ArrayList<Integer>(), new ArrayList<Node>());
+        tc.clearPreAmble();
+        tc.setReachable(true);
+      } else {
+        System.out.println("calculating preAmble");
+        ArrayList<Integer> blocks = calcPreAmbleSteps(currentNode, tc);
+        System.out.println("PreAmble: " + blocks);
+        if (blocks == null) {
+          tc.setReachable(false);
+        } else {
+          blocks.add(tc.getStartBlock());
+          ArrayList<PreAmble> possiblePreAmbles = matchPathToTests(blocks);
+          tc.clearPreAmble();
+          if (possiblePreAmbles.size() == 0) {
+            // No test case combination matched the preAmble.
+            // This SHOULD never happen
+            tc.setReachable(false);
+          } else {
+            for (PreAmble preAmble : possiblePreAmbles) {
+              tc.addPreamble(preAmble);
+            }
+          }
+        }
       }
     }
+    tblTCs.revalidate();
     tblTCs.repaint();
   }
 
+  private ArrayList<Integer> calcPreAmbleSteps(Node startNode, TestCase tc) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("(test-path-preamble " + startNode.getBlockIndex() + " (");
+    for (Node n : tc.getNodeSteps()) {
+      sb.append(n.getBlockIndex() + " ");
+    }
+    sb.setLength(sb.length() - 1);
+    sb.append("))");
+    ArrayList<ArrayList<Integer>> result =
+        sendTestCaseGenCommands(new ArrayList<String>(Arrays.asList(sb.toString())));
+    if (result.size() > 0) {
+      return result.get(0);
+    } else {
+      return null;
+    }
+  }
+
+  private ArrayList<PreAmble> matchPathToTests(ArrayList<Integer> blocks) {
+    System.out.println("INDEX: " + convertIndexToReferencedIndex(17));
+    System.out.println("INDEX2: " + convertIndexToReferencedIndex(1));
+    ArrayList<TestCase> tblTestCases = new ArrayList<TestCase>();
+    for (int i = 0; i < tblTCs.getRowCount(); i++) {
+      tblTestCases.add((TestCase) tblTCs.getValueAt(i, 0));
+    }
+    ArrayList<PreAmble> allCombinations = new ArrayList<PreAmble>();
+    for (TestCase tc : tblTestCases) {
+      findPossibleTCCombinations(blocks, tblTestCases, tc, allCombinations, new PreAmble());
+    }
+    return allCombinations;
+  }
+
+  private void findPossibleTCCombinations(List<Integer> blocks, List<TestCase> tblTestCases,
+      TestCase currentTC, List<PreAmble> allCombinations, PreAmble currentCombo) {
+    if (isStrongMatch(blocks, currentTC)) {
+      currentCombo.add(currentTC);
+      allCombinations.add(currentCombo);
+      return;
+    }
+    if (isPartMatch(blocks, currentTC)) {
+      currentCombo.add(currentTC);
+      for (TestCase tc : tblTestCases) {
+        ArrayList<TestCase> tempTblTestCases = new ArrayList<TestCase>(tblTestCases);
+        tempTblTestCases.remove(tc);
+        List<Integer> tempBlocks = blocks.subList(currentTC.getBlocks().size() - 1, blocks.size());
+        findPossibleTCCombinations(tempBlocks, tempTblTestCases, tc, allCombinations, currentCombo);
+      }
+    }
+  }
+
+  private boolean isStrongMatch(List<Integer> blocks, TestCase tc) {
+    ArrayList<Integer> testBlocks = tc.getBlocks();
+    System.out.println("TEST BLOCKS: " + testBlocks);
+    System.out.println("PRE BLOCKS: " + blocks);
+    if (blocks.size() == testBlocks.size()) {
+      for (int i = 0; i < blocks.size(); i++) {
+        if (convertIndexToReferencedIndex(blocks.get(i)) != convertIndexToReferencedIndex(
+            testBlocks.get(i))) {
+          return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    System.out.println(tc + " is a strong match");
+    return true;
+  }
+
+  private boolean isPartMatch(List<Integer> blocks, TestCase tc) {
+    ArrayList<Integer> testBlocks = tc.getBlocks();
+    if (blocks.size() >= testBlocks.size()) {
+      for (int i = 0; i < testBlocks.size(); i++) {
+        System.out.println("COMPARING " + convertIndexToReferencedIndex(testBlocks.get(i)) + " and "
+            + convertIndexToReferencedIndex(blocks.get(i)));
+        if (convertIndexToReferencedIndex(blocks.get(i)) != convertIndexToReferencedIndex(
+            testBlocks.get(i))) {
+          return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    System.out.println(tc + " is a part match");
+    return true;
+  }
+
   private void updateTblTp() {
-    tblTP.setModel(new TestCasesModel(selectedTCs));
+    ((TestCaseModel) tblTP.getModel()).addData(selectedTCs);
+    tblTP.revalidate();
     tblTP.repaint();
   }
 
@@ -1065,7 +1166,7 @@ public class Main extends JFrame {
       public void actionPerformed(ActionEvent arg0) {
         selectedTCs.clear();
         currentNode = null;
-        ArrayList<String> commands = creatTestCaseGenCommands();
+        ArrayList<String> commands = createTestCaseGenCommands();
         if (commands.size() > 0) {
           ArrayList<ArrayList<Integer>> testCases = sendTestCaseGenCommands(commands);
           if (testCases.size() > 0) {
@@ -1079,6 +1180,51 @@ public class Main extends JFrame {
           JOptionPane.showMessageDialog(null,
               "Invalid config. Make sure you have selected some checkpoints.");
         }
+      }
+
+      private ArrayList<String> createTestCaseGenCommands() {
+        ArrayList<String> commands = new ArrayList<String>();
+        ArrayList<Integer> noiBlocks = new ArrayList<Integer>();
+        ArrayList<Integer> startingBlocks = new ArrayList<Integer>();
+        ArrayList<Integer> endingBlocks = new ArrayList<Integer>();
+        for (Node n : selectedCPs) {
+          if ((n.getFlag() == "")) {
+            startingBlocks.add(n.getBlockIndex());
+            endingBlocks.add(n.getBlockIndex());
+          } else {
+            endingBlocks.add(n.getBlockIndex());
+          }
+        }
+        System.out.println("STARTING BLOCKS: " + startingBlocks);
+        System.out.println("ENDING BLOCKS: " + endingBlocks);
+        for (Node n : selectedNOIs) {
+          if (n.isNoi()) {
+            noiBlocks.add(n.getBlockIndex());
+          }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i : startingBlocks) {
+          for (int j : endingBlocks) {
+            sb.append("(find-test-paths " + i + " (");
+            for (int k : noiBlocks) {
+              sb.append(k + " ");
+            }
+            if (noiBlocks.size() > 0) {
+              // Remove final space added
+              sb.setLength(sb.length() - 1);
+            }
+            sb.append(") " + j + " (");
+            for (int k : endingBlocks) {
+              sb.append(k + " ");
+            }
+            // Remove final space added
+            sb.setLength(sb.length() - 1);
+            sb.append("))");
+            commands.add(sb.toString());
+            sb.setLength(0);
+          }
+        }
+        return commands;
       }
     });
     contentPane.add(btnGenerateTestCases);
@@ -1420,7 +1566,9 @@ public class Main extends JFrame {
     btnRemoveNOI.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         for (int i : tblNOI.getSelectedRows()) {
-          ((Node) tblNOI.getValueAt(i, 0)).setNoi(false);
+          Node tblNode = ((Node) tblNOI.getValueAt(i, 0));
+          tblNode.setNoi(false);
+          selectedNOIs.remove(tblNode);
           tblNOI.repaint();
         }
       }
@@ -1438,6 +1586,7 @@ public class Main extends JFrame {
             if (n.equalsSimple(tblNode)) {
               n.setNoi(true);
               n.setCp(false);
+              selectedNOIs.add(n);
             }
           }
         }
@@ -1460,7 +1609,7 @@ public class Main extends JFrame {
     panelTP.add(lblGeneratedTestCases);
 
     /* Generated Test Cases Table */
-    tblTCs = new JTable(new TestCasesModel(null));
+    tblTCs = new JTable(new TestCaseModel(null));
     tblTCs.setDefaultRenderer(TestCase.class, new TestCaseCell());
     tblTCs.setDefaultEditor(TestCase.class, new TestCaseCell());
     tblTCs.setRowHeight(60);
@@ -1477,35 +1626,33 @@ public class Main extends JFrame {
     lblCurrentNode.setBounds(566, 11, 299, 22);
     panelTP.add(lblCurrentNode);
 
-    lblCurrentNode2 = new JLabel("Current Node");
-    lblCurrentNode2.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
-
-    /* Current Node Panel */
-    JPanel pnlCurrentNode = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    pnlCurrentNode.setBorder(new LineBorder(new Color(0, 0, 0)));
-    pnlCurrentNode.add(lblCurrentNode2);
-    pnlCurrentNode.setBackground(Constants.notSelectedColour);
-    pnlCurrentNode.setBounds(566, 33, 550, 61);
-    panelTP.add(pnlCurrentNode);
-
     /* Current Test Path Label */
     JLabel lblCurrentTestPath = new JLabel("Current Test Path:");
     lblCurrentTestPath.setFont(new Font("Tahoma", Font.PLAIN, 18));
-    lblCurrentTestPath.setBounds(566, 105, 299, 22);
+    lblCurrentTestPath.setBounds(566, 93, 299, 22);
     panelTP.add(lblCurrentTestPath);
 
     /* Current Test Path Table */
     tblTP = new JTable();
-    tblTP.setModel(new TestPathModel(null));
+    tblTP.setModel(new TestCaseModel(null));
     tblTP.setDefaultRenderer(TestCase.class, new TestPathCell());
     tblTP.setDefaultEditor(TestCase.class, new TestPathCell());
     tblTP.setRowHeight(60);
     tblTP.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     tblTP.setTableHeader(null);
     JScrollPane scrollPane2 = new JScrollPane();
-    scrollPane2.setBounds(566, 138, 550, 483);
+    scrollPane2.setBounds(566, 126, 550, 495);
     scrollPane2.setViewportView(tblTP);
     panelTP.add(scrollPane2);
+
+    /* Table for JDialog */
+    tblPreAmble = new JTable();
+    tblPreAmble.setModel(new TestCasePreAmbleModel(null));
+    tblPreAmble.setDefaultRenderer(PreAmble.class, new TestCasePreAmbleCell());
+    tblPreAmble.setDefaultEditor(PreAmble.class, new TestCasePreAmbleCell());
+    tblPreAmble.setRowHeight(60);
+    tblPreAmble.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    tblPreAmble.setTableHeader(null);
 
     /* Help Button */
     JButton btnHelp = new JButton("Help");
@@ -1513,12 +1660,17 @@ public class Main extends JFrame {
     btnHelp.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent arg0) {
+        // TODO UPDATE THIS
         JOptionPane.showMessageDialog(frame,
-            "<html>Cells are coloured to represent to show their availability:<br>"
-                + "<ul><li>A Red cell indicates that the test case is unreachable."
-                + "<li>A Green cell indicates that the test case has been selected to be part of the test path."
-                + "<li>A Yellow cell indicates that the test case is part of a preamble to reach a test and not an actual test itself."
-                + "</ul>",
+            "<html>Cells are coloured to show their selection status:<br>" + "<ul>"
+                + "<li>A Blue cell indicates that the test case has been selected to be part of the combined test path."
+                + "<li>A White cell indicates that the test case has not been selected to be part of the combined test path."
+                + "</ul>"
+                + "Cells also have indicators on the right of the cell that change colour depending on the test cases availability:"
+                + "<ul>"
+                + "<li>A Green indicator is used to represent a test case that is immediately available from the current node."
+                + "<li>A Yellow indicator is used to represent a test case that is some amount of steps away from the current node."
+                + "<li>A Red indicator is used to represent an unreachable test case." + "</ul>",
             "Help", JOptionPane.INFORMATION_MESSAGE);
       }
     });
@@ -1528,27 +1680,76 @@ public class Main extends JFrame {
     JButton btnAddTestCase = new JButton("Add Test Case ->");
     btnAddTestCase.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        TestCase tc = (TestCase) tblTCs.getValueAt(tblTCs.getSelectedRow(), 0);
-        System.out.println("Test Case: " + tc);
-        if (lastNodeOfBlock(tc.getStartBlock()).equals(currentNode)) {
+        TestCase selectedTC = (TestCase) tblTCs.getValueAt(tblTCs.getSelectedRow(), 0);
+        if (selectedTC.isReachable() && selectedTC.getUserActionsPreamble().size() == 0) {
           System.out.println("No Preamble needed");
+          selectedTCs.add(selectedTC);
+          selectedTC.setSelected(true);
+          currentNode = selectedTC.getFirstNodeOfEndingBlock();
         } else {
-          if (tc.getBlocksAway().size() > 0) {
-            System.out.println("Preamble generated");
-            List<Integer> preAmbleBlocks = tc.getBlocksAway();
-            preAmbleBlocks.add(tc.getStartBlock());
-            TestCase preAmble = new TestCase(preAmbleBlocks, getNodeList(preAmbleBlocks));
-            preAmble.setPreAmble(true);
-            System.out.println("PREAMBLE: " + preAmble);
-            selectedTCs.add(preAmble);
+          if (selectedTC.getPreAmble().size() == 1) {
+            JPanel optionPane = createPreAmbleOKDialog(selectedTC);
+            int result = JOptionPane.showConfirmDialog(null, optionPane, "PreAmble",
+                JOptionPane.YES_NO_OPTION);
+            if (result == JOptionPane.YES_OPTION) {
+              List<PreAmble> preAmble = selectedTC.getPreAmble();
+              for (TestCase preAmbleTC : preAmble.get(0)) {
+                selectedTCs.add(preAmbleTC);
+              }
+              selectedTCs.add(selectedTC);
+              selectedTC.setSelected(true);
+              currentNode = selectedTC.getFirstNodeOfEndingBlock();
+            }
+          } else {
+            JScrollPane scrollPane3 = new JScrollPane();
+            scrollPane3.setViewportView(tblPreAmble);
+            ((TestCasePreAmbleModel) tblPreAmble.getModel()).addData(selectedTC.getPreAmble());
+            int result = JOptionPane.showConfirmDialog(null, scrollPane3, "Select PreAmble",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+            System.out.println(result + " = " + JOptionPane.OK_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+              PreAmble preAmble =
+                  (PreAmble) tblPreAmble.getValueAt(tblPreAmble.getSelectedRow(), 0);
+              for (TestCase preAmbleTC : preAmble) {
+                selectedTCs.add(preAmbleTC);
+              }
+              selectedTCs.add(selectedTC);
+              selectedTC.setSelected(true);
+              currentNode = selectedTC.getFirstNodeOfEndingBlock();
+            }
           }
         }
-        selectedTCs.add(tc);
-        tc.setSelected(true);
-        currentNode = tc.getEndNode();
-        lblCurrentNode2.setText(currentNode.toString());
+        if (Constants.nodeReversionFlags.contains(currentNode.getFlag())) {
+          lblCurrentNode2.setText(currentNode.toString() + "  /  "
+              + convertNodeToReferencedNode(currentNode).toString());
+        } else {
+          lblCurrentNode2.setText(currentNode.toString());
+        }
         updateTblTCs();
         updateTblTp();
+      }
+
+      private JPanel createPreAmbleOKDialog(TestCase selectedTC) {
+        JPanel optionPane = new JPanel();
+        optionPane.setLayout(new BoxLayout(optionPane, BoxLayout.Y_AXIS));
+        JTable tblTemp = new JTable();
+        tblTemp.setModel(new TestCaseModel(null));
+        tblTemp.setDefaultRenderer(TestCase.class, new TestCaseCell());
+        tblTemp.setDefaultEditor(TestCase.class, new TestCaseCell());
+        tblTemp.setRowHeight(60);
+        tblTemp.setFocusable(false);
+        tblTemp.setRowSelectionAllowed(false);
+        tblTemp.setTableHeader(null);
+        ((TestCaseModel) tblTemp.getModel())
+            .addData(selectedTC.getPreAmble().get(0).getUnderlyingStructure());
+        JScrollPane scrollPane4 = new JScrollPane();
+        // scrollPane4.setBounds(566, 126, 550, 495);
+        scrollPane4.setViewportView(tblTemp);
+        JLabel message = new JLabel(
+            "The following test cases must be added to reach the selected test case. Is this alright?");
+        optionPane.add(message);
+        optionPane.add(scrollPane4);
+        return optionPane;
       }
     });
     btnAddTestCase.setBounds(383, 77, 151, 61);
@@ -1558,6 +1759,7 @@ public class Main extends JFrame {
     JButton btnUndo = new JButton("Undo");
     btnUndo.setBounds(383, 215, 151, 61);
     btnUndo.addActionListener(new ActionListener() {
+
       @Override
       public void actionPerformed(ActionEvent e) {
         if (!selectedTCs.isEmpty()) {
@@ -1569,17 +1771,9 @@ public class Main extends JFrame {
             // If the removed test case was the only one reset initial node
             currentNode = initialNode;
           } else {
-            if (selectedTCs.get(selectedTCs.size() - 1).isPreAmble()) {
-              selectedTCs.get(selectedTCs.size() - 1).setSelected(false);
-              selectedTCs.remove(selectedTCs.size() - 1);
-            }
-            if (selectedTCs.isEmpty()) {
-              // If the removed test case was the only one reset initial node
-              currentNode = initialNode;
-            } else {
-              currentNode = selectedTCs.get(selectedTCs.size() - 1).getEndNode();
-            }
+            currentNode = selectedTCs.get(selectedTCs.size() - 1).getEndNode();
           }
+          lblCurrentNode2.setText(currentNode.toString());
           updateTblTCs();
           updateTblTp();
         }
@@ -1593,74 +1787,37 @@ public class Main extends JFrame {
     btnExportToHtml.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent arg0) {
+        ArrayList<Integer> steps = new ArrayList<Integer>();
+        for (int i = 0; i < selectedTCs.size(); i++) {
+          TestCase tc = selectedTCs.get(i);
+          steps.addAll(tc.getBlocks().subList(0, tc.getBlocks().size() - 1));
+          if (i == selectedTCs.size() - 1) {
+            steps.add(tc.getBlocks().get(tc.getBlocks().size() - 1));
+          }
+        }
+        StringBuilder test = new StringBuilder();
+        test.append("(check-test-path (");
+        for (int i : steps) {
+          test.append(i + " ");
+        }
+        test.setLength(test.length() - 1);
+        test.append("))");
+        String result = sbcl.sendCommand(test.toString());
+        System.out.println(result);
         HTMLFormWriter.output(selectedTCs, loadedFile);
       }
     });
     panelTP.add(btnExportToHtml);
 
+    lblCurrentNode2 = new JLabel("Current Node");
+    lblCurrentNode2.setBorder(new LineBorder(new Color(0, 0, 0)));
+    lblCurrentNode2.setBackground(new Color(255, 255, 255, 255));
+    lblCurrentNode2.setHorizontalAlignment(SwingConstants.CENTER);
+    lblCurrentNode2.setFont(new Font("SansSerif", Font.PLAIN, 16));
+    lblCurrentNode2.setBounds(566, 38, 529, 44);
+    panelTP.add(lblCurrentNode2);
+
     return panelTP;
-  }
-
-  private ArrayList<Integer> calcTotalTestCaseSteps(Node startNode, TestCase tc) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("(test-path-preamble " + startNode.getBlockIndex() + " (");
-    for (Node n : tc.getNodeSteps()) {
-      sb.append(n.getBlockIndex() + " ");
-    }
-    sb.setLength(sb.length() - 1);
-    sb.append("))");
-    ArrayList<ArrayList<Integer>> result =
-        sendTestCaseGenCommands(new ArrayList<String>(Arrays.asList(sb.toString())));
-    if (result.size() > 0) {
-      return result.get(0);
-    } else {
-      return null;
-    }
-  }
-
-  private ArrayList<String> creatTestCaseGenCommands() {
-    ArrayList<String> commands = new ArrayList<String>();
-    ArrayList<Integer> noiBlocks = new ArrayList<Integer>();
-    ArrayList<Integer> startingBlocks = new ArrayList<Integer>();
-    ArrayList<Integer> endingBlocks = new ArrayList<Integer>();
-    for (Node n : selectedCPs) {
-      if ((n.getFlag() == "")) {
-        startingBlocks.add(n.getBlockIndex());
-        endingBlocks.add(n.getBlockIndex());
-      } else {
-        endingBlocks.add(n.getBlockIndex());
-      }
-    }
-    System.out.println("STARTING BLOCKS: " + startingBlocks);
-    System.out.println("ENDING BLOCKS: " + endingBlocks);
-    for (Node n : selectedNOIs) {
-      if (n.isNoi()) {
-        noiBlocks.add(n.getBlockIndex());
-      }
-    }
-    StringBuilder sb = new StringBuilder();
-    for (int i : startingBlocks) {
-      for (int j : endingBlocks) {
-        sb.append("(find-test-paths " + i + " (");
-        for (int k : noiBlocks) {
-          sb.append(k + " ");
-        }
-        if (noiBlocks.size() > 0) {
-          // Remove final space added
-          sb.setLength(sb.length() - 1);
-        }
-        sb.append(") " + j + " (");
-        for (int k : endingBlocks) {
-          sb.append(k + " ");
-        }
-        // Remove final space added
-        sb.setLength(sb.length() - 1);
-        sb.append("))");
-        commands.add(sb.toString());
-        sb.setLength(0);
-      }
-    }
-    return commands;
   }
 
   private ArrayList<ArrayList<Integer>> sendTestCaseGenCommands(ArrayList<String> commands) {
@@ -1668,7 +1825,7 @@ public class Main extends JFrame {
     for (String command : commands) {
       String result = sbcl.sendCommand(command);
       if (result
-          .matches("<result><path>(<block-index>\\d+<\\/block-index>)+<\\/path><\\/result>")) {
+          .matches("<result>(<path>(<block-index>\\d+<\\/block-index>)+<\\/path>)+<\\/result>")) {
         org.jdom2.input.SAXBuilder saxBuilder = new SAXBuilder();
 
         org.jdom2.Document doc = null;
@@ -1679,12 +1836,13 @@ public class Main extends JFrame {
         }
 
         Element root = doc.getRootElement();
-        ArrayList<Integer> pathList = new ArrayList<Integer>();
-        List<Element> pathXML = root.getChild("path").getChildren("block-index");
-        for (Element block : pathXML) {
-          pathList.add(Integer.parseInt(block.getValue()));
+        for (Element path : root.getChildren("path")) {
+          ArrayList<Integer> pathList = new ArrayList<Integer>();
+          for (Element block : path.getChildren("block-index")) {
+            pathList.add(Integer.parseInt(block.getValue()));
+          }
+          testCases.add(pathList);
         }
-        testCases.add(pathList);
       } else if (result.matches("error\\|\\d+\\|")) {
         printErrorMessage(result);
         break;
@@ -1750,11 +1908,6 @@ public class Main extends JFrame {
     }
   }
 
-  private Node lastNodeOfBlock(Integer blockIndex) {
-    return indexToNodesMap.get(blockIndex).getNodes()
-        .get(indexToNodesMap.get(blockIndex).getNodes().size() - 1);
-  }
-
   private String connectToServer() {
     String connectionResult = "";
     try {
@@ -1769,16 +1922,26 @@ public class Main extends JFrame {
     return connectionResult;
   }
 
-  private TestCase constructTestCase(Collection<Integer> blocks) {
-    ArrayList<Node> nodeList = getNodeList(blocks);
-    return new TestCase(blocks, nodeList);
+  private Node convertNodeToReferencedNode(Node node) {
+    Node testNode = new Node(node.getTag(), node.getComponent(), node.getBehaviourType(),
+        node.getBehaviour(), "", node.getBlockIndex());
+    for (Node n : allNodes) {
+      if (n.equalsSimple(testNode) && !Constants.nodeReversionFlags.contains(n.getFlag())) {
+        return n;
+      }
+    }
+    return null;
   }
 
-  private ArrayList<Node> getNodeList(Collection<Integer> blocks) {
-    ArrayList<Node> nodeList = new ArrayList<Node>();
-    for (int i : blocks) {
-      nodeList.addAll(indexToNodesMap.get(i).getNodes());
+  private Integer convertIndexToReferencedIndex(int index) {
+    Node node = indexToNodesMap.get(index).getNodes().get(0);
+    Node testNode = new Node(node.getTag(), node.getComponent(), node.getBehaviourType(),
+        node.getBehaviour(), "", node.getBlockIndex());
+    for (Node n : allNodes) {
+      if (n.equalsSimple(testNode) && !Constants.nodeReversionFlags.contains(n.getFlag())) {
+        return n.getBlockIndex();
+      }
     }
-    return nodeList;
+    return index;
   }
 }

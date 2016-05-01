@@ -77,6 +77,9 @@ public class SBCLPipe {
       // TODO adding the argument /b to hide the cmd prompt from users seems to put a limit on how
       // quickly commands can be given.
       // This means generating test cases using a large amount of CPs times out and fails.
+      // Runtime.getRuntime().exec(
+      // "cmd /c start /b cmd.exe /K \"cd BTAnalyser && sbcl --dynamic-space-size 4096 --load
+      // \"start.lisp\"");
       Runtime.getRuntime().exec(
           "cmd /c start cmd.exe /K \"cd BTAnalyser && sbcl --dynamic-space-size 4096 --load \"start.lisp\"");
     } else if (os == "Mac") {

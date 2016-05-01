@@ -16,5 +16,4 @@ public class ORFilter extends RowFilter<NodeTableModel, Integer> {
     }
     return false;
   }
-
 }

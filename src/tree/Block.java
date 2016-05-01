@@ -32,11 +32,11 @@ public class Block {
   public Integer getIndex() {
     return index;
   }
-  
+
   public String getBranchType() {
     return branchType;
   }
-  
+
   public List<Node> getNodes() {
     return nodes;
   }
@@ -44,9 +44,17 @@ public class Block {
   @Override
   public String toString() {
     String retVal = "(" + index + "," + nodes + ", ";
-    for(Integer child : children) {
+    for (Integer child : children) {
       retVal = retVal.concat(child + ",");
     }
     return retVal + ")";
+  }
+
+  public String completeToString() {
+    String result = "";
+    for (Node node : getNodes()) {
+      result = result + node + "\n";
+    }
+    return result;
   }
 }

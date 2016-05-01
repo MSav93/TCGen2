@@ -14,7 +14,7 @@ public class UACell extends NodeTableCell implements TableCellEditor, TableCellR
   protected void updateData(Node node, boolean isSelected, JTable table) {
     super.updateData(node, isSelected, table);
     if (!node.getAction().equals("")) {
-      panel.setBackground(Constants.selectedColour);
+      panel.setBackground(Constants.nodeSelectedColour);
     } else {
       panel.setBackground(Constants.notSelectedColour);
     }

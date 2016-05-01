@@ -1,16 +1,20 @@
 package table;
 
-import java.util.List;
+import java.util.Collection;
 
 import javax.swing.table.AbstractTableModel;
 
 import other.TestCase;
 
-public class TestCasesModel extends AbstractTableModel {
+public class TestCaseModel extends AbstractTableModel {
   private static final long serialVersionUID = -7480665278104499754L;
-  List<TestCase> paths;
+  Collection<TestCase> paths;
 
-  public TestCasesModel(List<TestCase> paths) {
+  public TestCaseModel(Collection<TestCase> paths) {
+    this.paths = paths;
+  }
+
+  public void addData(Collection<TestCase> paths) {
     this.paths = paths;
   }
 
@@ -32,7 +36,7 @@ public class TestCasesModel extends AbstractTableModel {
   }
 
   public Object getValueAt(int rowIndex, int columnIndex) {
-    return (paths == null) ? null : paths.get(rowIndex);
+    return (paths == null) ? null : paths.toArray(new TestCase[] {})[rowIndex];
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {

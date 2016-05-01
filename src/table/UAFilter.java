@@ -16,5 +16,4 @@ public class UAFilter extends RowFilter<NodeTableModel, Integer> {
     }
     return false;
   }
-
 }

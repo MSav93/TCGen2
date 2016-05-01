@@ -107,8 +107,7 @@ public class HTMLFormWriter {
         + ".tg  {border-collapse:collapse;border-spacing:0;border-color:#aabcfe;margin:0px auto;}\r\n"
         + ".tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 20px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#669;background-color:#e8edff;}\r\n"
         + ".tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 20px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#039;background-color:#b9c9fe;}\r\n"
-        + ".tg .tg-yw4l{vertical-align:top}\r\n"
-        + ".tg .tg-pre{background-color:#ffffc7;vertical-align:top}\r\n" + "</style>\r\n");
+        + ".tg .tg-yw4l{vertical-align:top}\r\n" + "</style>\r\n");
   }
 
   private static void startBody() {
@@ -150,9 +149,6 @@ public class HTMLFormWriter {
     for (int i = 0; i < selectedTCs.size(); i++) {
       TestCase tc = selectedTCs.get(i);
       String cellClass = "tg-yw41";
-      if (tc.isPreAmble()) {
-        cellClass = "tg-pre";
-      }
       html.append("  <tr>\r\n    <td class=\"" + cellClass + "\">" + i + "</td>\r\n"
           + "    <td class=\"" + cellClass + "\">");
       html.append(getNodeList(tc, firstPass).toString());

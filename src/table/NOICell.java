@@ -14,7 +14,7 @@ public class NOICell extends NodeTableCell implements TableCellEditor, TableCell
   protected void updateData(Node node, boolean isSelected, JTable table) {
     super.updateData(node, isSelected, table);
     if (node.isNoi()) {
-      panel.setBackground(Constants.selectedColour);
+      panel.setBackground(Constants.nodeSelectedColour);
     } else {
       panel.setBackground(Constants.notSelectedColour);
     }

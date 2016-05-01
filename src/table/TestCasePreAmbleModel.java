@@ -1,21 +1,26 @@
 package table;
 
-import java.util.List;
+import java.util.Collection;
 
 import javax.swing.table.AbstractTableModel;
 
-import other.TestCase;
+import other.PreAmble;
 
-public class TestPathModel extends AbstractTableModel {
+public class TestCasePreAmbleModel extends AbstractTableModel {
   private static final long serialVersionUID = -7480665278104499754L;
-  List<TestCase> paths;
-  public TestPathModel(List<TestCase> paths) {
+  Collection<PreAmble> paths;
+
+  public TestCasePreAmbleModel(Collection<PreAmble> paths) {
+    this.paths = paths;
+  }
+
+  public void addData(Collection<PreAmble> paths) {
     this.paths = paths;
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   public Class getColumnClass(int columnIndex) {
-    return TestCase.class;
+    return PreAmble.class;
   }
 
   public int getColumnCount() {
@@ -31,7 +36,11 @@ public class TestPathModel extends AbstractTableModel {
   }
 
   public Object getValueAt(int rowIndex, int columnIndex) {
-    return (paths == null) ? null : paths.get(rowIndex);
+    if (paths == null) {
+      return null;
+    } else {
+      return paths.toArray()[rowIndex];
+    }
   }
 
   public boolean isCellEditable(int rowIndex, int columnIndex) {

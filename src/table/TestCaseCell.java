@@ -1,8 +1,8 @@
 package table;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.FlowLayout;
 
 import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
@@ -20,14 +20,18 @@ import tree.Node;
 public class TestCaseCell extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
   private static final long serialVersionUID = -5535773127849322173L;
   JPanel panel;
+  JLabel colourIndicator;
   JLabel text;
 
   TestCase testCase;
 
   public TestCaseCell() {
     text = new JLabel();
-    panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    panel.add(text);
+    panel = new JPanel(new BorderLayout());
+    panel.add(text, BorderLayout.CENTER);
+    colourIndicator = new JLabel("    ");
+    colourIndicator.setOpaque(true);
+    panel.add(colourIndicator, BorderLayout.LINE_END);
     panel.setBackground(new Color(255, 77, 77));
   }
 
@@ -42,13 +46,18 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
       panel.setBorder(table.getBorder());
     }
     if (testCase.isSelected()) {
-      // If test case has been added to test path colour it green
-      panel.setBackground(Constants.selectedColour);
-    } else if (!testCase.isReachable()) {
-      // If test case is unreachable colour it red
-      panel.setBackground(Constants.unavailableColour);
+      // If test case has been added to test path colour it blue
+      panel.setBackground(Constants.testCaseSelectedColour);
     } else {
       panel.setBackground(Constants.notSelectedColour);
+    }
+    if (!testCase.isReachable()) {
+      // If test case is unreachable colour it red
+      colourIndicator.setBackground(Constants.unavailableColour);
+    } else if (testCase.getUserActionsPreamble().size() > 0) {
+      colourIndicator.setBackground(Constants.preambleColour);
+    } else {
+      colourIndicator.setBackground(Constants.immediatelyAvailableColour);
     }
     panel.setToolTipText(getToolTipText());
     ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
@@ -74,11 +83,8 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
 
   public String getToolTipText() {
     StringBuilder sb = new StringBuilder();
-    sb.append("<html><b>Nodes Away:</b> " + testCase.getNodesAwayLength());
-    for (Node n : testCase.getNodesAway()) {
-      sb.append("<br>" + Constants.htmlTabSpacing + formatNode(n));
-    }
-    sb.append("<br><b>Nodes Involved:</b> " + testCase.getNodeLength());
+    sb.append("<html>");
+    sb.append("<b>Nodes Involved:</b> " + testCase.getNodeLength());
     for (Node n : testCase.getNodeSteps()) {
       sb.append("<br>" + Constants.htmlTabSpacing + formatNode(n));
     }
@@ -87,24 +93,12 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
   }
 
   private String formatNode(Node n) {
-    return "[" + n.getTag() + "] " + n.getComponent() + ": " + n.getBehaviour() + "["
-        + n.getBehaviourType() + "]" + getFlagSymbol(n.getFlag());
-  }
-
-  private String getFlagSymbol(String flag) {
-    if (!flag.equals("")) {
-      if (Constants.nodeFlags.contains(flag)) {
-        return " " + Constants.nodeFlagSymbols.get(Constants.nodeFlags.indexOf(flag));
-      }
-      return " " + flag;
-    }
-    return "";
+    return n.toString();
   }
 
   private String getCellText() {
-    return "<html><b>Start Node:</b> " + testCase.getLastNodeOfStartingBlock() + "<br><b>End Node:</b> "
-        + testCase.getEndNode() + "<br><b>Nodes Away:</b> "
-        + (!testCase.isReachable() ? "?" : testCase.getNodesAwayLength()) + Constants.htmlTabSpacing
-        + "<b>Nodes Involved:</b> " + testCase.getNodeLength() + "</html>";
+    return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>End Node:</b> "
+        + testCase.getFirstNodeOfEndingBlock() + "<br>" + "<b>User Actions Involved:</b> "
+        + testCase.getUserActionsAmount() + "</html>";
   }
 }

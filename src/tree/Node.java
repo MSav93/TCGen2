@@ -71,8 +71,17 @@ public class Node implements Comparable<Node> {
   }
 
   public String toString() {
-    return "[" + tag + "] " + component + ": " + behaviour + "[" + behaviourType + "]"
-        + getFlagSymbol(flag);
+    String flag = "";
+    if (getFlag().equals("REVERSION")) {
+      flag = " ^";
+    } else if (getFlag().equals("REFERENCE")) {
+      flag = " =>";
+    } else if (getFlag().equals("KILL")) {
+      flag = " --";
+    } else if (getFlag().equals("SYNCHRONISE")) {
+      flag = " =";
+    }
+    return getTag() + " | " + simpleToString() + flag;
   }
 
   private String getFlagSymbol(String flag) {
@@ -83,6 +92,42 @@ public class Node implements Comparable<Node> {
       return " " + flag;
     }
     return "";
+  }
+
+  public String simpleToString() {
+    String openParen = "";
+    String closeParen = "";
+    if (getBehaviourType().equals("STATE-REALISATION")) {
+      openParen = "[";
+      closeParen = "]";
+    } else if (getBehaviourType().equals("SELECTION")) {
+      openParen = "?";
+      closeParen = "?";
+    } else if (getBehaviourType().equals("GUARD")) {
+      openParen = "???";
+      closeParen = "???";
+    } else if (getBehaviourType().equals("EVENT")) {
+      openParen = "??";
+      closeParen = "??";
+    } else if (getBehaviourType().equals("INTERNAL-INPUT")) {
+      openParen = ">";
+      closeParen = "<";
+    } else if (getBehaviourType().equals("INTERNAL-OUTPUT")) {
+      openParen = "<";
+      closeParen = ">";
+    } else if (getBehaviourType().equals("EXTERNAL-INPUT")) {
+      openParen = ">>";
+      closeParen = "<<";
+    } else if (getBehaviourType().equals("EXTERNAL-OUTPUT")) {
+      openParen = "<<";
+      closeParen = ">>";
+    }
+    return getComponent() + " " + openParen + getBehaviour() + closeParen;
+  }
+
+  public String otherToString() {
+    return "[" + tag + "] " + component + ": " + behaviour + "[" + behaviourType + "]"
+        + getFlagSymbol(flag);
   }
 
   @Override

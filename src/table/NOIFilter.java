@@ -15,5 +15,4 @@ public class NOIFilter extends RowFilter<NodeTableModel, Integer> {
     }
     return false;
   }
-
 }
