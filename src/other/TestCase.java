@@ -12,10 +12,12 @@ public class TestCase {
   ArrayList<PreAmble> possiblePreAmbles;
   private Boolean isSelected = false;
   private Boolean isReachable = true;
+  private Integer id;
 
-  public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam) {
+  public TestCase(Collection<Integer> blockListParam, Collection<Node> nodeListParam, int idParam) {
     this.blockList = new ArrayList<Integer>(blockListParam);
     this.nodeList = new ArrayList<Node>(nodeListParam);
+    this.id = idParam;
     this.possiblePreAmbles = new ArrayList<PreAmble>();
   }
 
@@ -137,5 +139,9 @@ public class TestCase {
 
   public ArrayList<PreAmble> getPreAmble() {
     return possiblePreAmbles;
+  }
+
+  public Integer getID() {
+    return id;
   }
 }

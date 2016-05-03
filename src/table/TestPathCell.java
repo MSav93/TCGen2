@@ -1,8 +1,8 @@
 package table;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.FlowLayout;
 
 import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
@@ -21,18 +21,23 @@ public class TestPathCell extends AbstractCellEditor implements TableCellEditor,
   private static final long serialVersionUID = -5535773127849322173L;
   JPanel panel;
   JLabel text;
+  JLabel id;
   TestCase testCase;
 
   public TestPathCell() {
+    panel = new JPanel(new BorderLayout());
+    id = new JLabel();
+    panel.add(id, BorderLayout.LINE_START);
     text = new JLabel();
-    panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    panel.add(text);
+    panel.add(text, BorderLayout.CENTER);
     panel.setBackground(Constants.notSelectedColour);
   }
 
   protected void updateData(TestCase testCase, boolean isSelected, JTable table) {
     this.testCase = testCase;
     text.setText(getCellText());
+    id.setText("<html>&nbsp;&nbsp;<b>ID:</b><br>&nbsp;&nbsp;&nbsp;" + testCase.getID()
+        + Constants.htmlTabSpacing);
 
     // If cell is selected give it a border
     if (isSelected) {

@@ -732,7 +732,7 @@ public class Main extends JFrame {
     ArrayList<TestCase> testCases = new ArrayList<TestCase>();
     for (int i = 0; i < rawTestCases.size(); i++) {
       ArrayList<Integer> testCase = rawTestCases.get(i);
-      testCases.add(new TestCase(testCase, getNodeList(testCase)));
+      testCases.add(new TestCase(testCase, getNodeList(testCase), i));
     }
     ((TestCaseModel) tblTCs.getModel()).addData(testCases);
     updateTblTCs();
@@ -1660,7 +1660,6 @@ public class Main extends JFrame {
     btnHelp.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent arg0) {
-        // TODO UPDATE THIS
         JOptionPane.showMessageDialog(frame,
             "<html>Cells are coloured to show their selection status:<br>" + "<ul>"
                 + "<li>A Blue cell indicates that the test case has been selected to be part of the combined test path."
@@ -1695,12 +1694,16 @@ public class Main extends JFrame {
               List<PreAmble> preAmble = selectedTC.getPreAmble();
               for (TestCase preAmbleTC : preAmble.get(0)) {
                 selectedTCs.add(preAmbleTC);
+                preAmbleTC.setSelected(true);
               }
               selectedTCs.add(selectedTC);
               selectedTC.setSelected(true);
               currentNode = selectedTC.getFirstNodeOfEndingBlock();
             }
           } else {
+            // TODO update this
+            // currently does not show individual test cases or test case ids. Can be very confusing
+            // Have to update cell text and tooltip text majorly
             JScrollPane scrollPane3 = new JScrollPane();
             scrollPane3.setViewportView(tblPreAmble);
             ((TestCasePreAmbleModel) tblPreAmble.getModel()).addData(selectedTC.getPreAmble());
@@ -1712,6 +1715,7 @@ public class Main extends JFrame {
                   (PreAmble) tblPreAmble.getValueAt(tblPreAmble.getSelectedRow(), 0);
               for (TestCase preAmbleTC : preAmble) {
                 selectedTCs.add(preAmbleTC);
+                preAmbleTC.setSelected(true);
               }
               selectedTCs.add(selectedTC);
               selectedTC.setSelected(true);

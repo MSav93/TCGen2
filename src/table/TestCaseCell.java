@@ -21,13 +21,16 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
   private static final long serialVersionUID = -5535773127849322173L;
   JPanel panel;
   JLabel colourIndicator;
+  JLabel id;
   JLabel text;
 
   TestCase testCase;
 
   public TestCaseCell() {
-    text = new JLabel();
     panel = new JPanel(new BorderLayout());
+    id = new JLabel();
+    panel.add(id, BorderLayout.LINE_START);
+    text = new JLabel();
     panel.add(text, BorderLayout.CENTER);
     colourIndicator = new JLabel("    ");
     colourIndicator.setOpaque(true);
@@ -38,7 +41,8 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
   protected void updateData(TestCase testCase, boolean isSelected, JTable table) {
     this.testCase = testCase;
     text.setText(getCellText());
-
+    id.setText("<html>&nbsp;&nbsp;<b>ID:</b><br>&nbsp;&nbsp;&nbsp;" + testCase.getID()
+        + Constants.htmlTabSpacing);
     // If cell is selected give it a border
     if (isSelected) {
       panel.setBorder(BorderFactory.createMatteBorder(2, 2, 2, 2, Color.BLUE));
@@ -98,7 +102,7 @@ public class TestCaseCell extends AbstractCellEditor implements TableCellEditor,
 
   private String getCellText() {
     return "<html><b>Start Node:</b> " + testCase.getStartNode() + "<br><b>End Node:</b> "
-        + testCase.getFirstNodeOfEndingBlock() + "<br>" + "<b>User Actions Involved:</b> "
+        + testCase.getFirstNodeOfEndingBlock() + "<br><b>User Actions Involved:</b> "
         + testCase.getUserActionsAmount() + "</html>";
   }
 }
