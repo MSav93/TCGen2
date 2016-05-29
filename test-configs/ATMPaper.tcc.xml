@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config version="0.2" filepath="C:\Users\Mitch\OneDrive\Documents\GitHub\Tp-Optimizer\models\ATM160524.btc">
+  <NOI />
+  <CP>
+    <node component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="ShowTransTypes" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="ShowAccTypes" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="ShowWdAmounts" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="AnotherTransaction?" behaviour-type="STATE-REALISATION" />
+    <node component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="ShowWdAmounts" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="ShowAccTypes" behaviour-type="STATE-REALISATION" />
+    <node component="Display" behaviour="AnotherTransaction?" behaviour-type="STATE-REALISATION" />
+    <initial tag="1" component="ATM" behaviour="Ready" behaviour-type="STATE-REALISATION" flag="" />
+  </CP>
+  <OR />
+  <UA />
+  <TP />
+</config>

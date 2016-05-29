@@ -13,6 +13,7 @@ public class CPCell extends NodeTableCell implements TableCellEditor, TableCellR
   @Override
   protected void updateData(Node node, boolean isSelected, JTable table) {
     super.updateData(node, isSelected, table);
+    text.setText(node.getComponent() +": " + node.getBehaviour());
     if (node.isCp()) {
       panel.setBackground(Constants.nodeSelectedColour);
     } else {

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config version="0.3" filepath="C:\Users\Mitch\OneDrive\Documents\GitHub\Tp-Optimizer\models\BRL150515.btc">
+  <NOI>
+    <node tag="10" component="Label" behaviour="TP" behaviour-type="STATE-REALISATION" flag="" />
+    <node tag="12" component="Label" behaviour="TT" behaviour-type="STATE-REALISATION" flag="" />
+    <node tag="16" component="Display" behaviour="error" behaviour-type="EXTERNAL-OUTPUT" flag="" />
+  </NOI>
+  <CP>
+    <node component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" />
+    <node component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" />
+    <node component="Vector" behaviour="dynamic" behaviour-type="STATE-REALISATION" />
+    <node component="Vector" behaviour="dynamic" behaviour-type="STATE-REALISATION" />
+    <node component="Vector" behaviour="fixed" behaviour-type="STATE-REALISATION" />
+    <node component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" />
+    <initial tag="0" component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" flag="" />
+  </CP>
+  <OR>
+    <node tag="0" component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" flag="" observation="No vector displayed" />
+    <node tag="5" component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" flag="REVERSION" observation="No vector displayed" />
+    <node tag="8" component="Vector" behaviour="dynamic" behaviour-type="STATE-REALISATION" flag="" observation="One end of the vector follows the pointer around" />
+    <node tag="10" component="Label" behaviour="TP" behaviour-type="STATE-REALISATION" flag="" observation="The label is in track-point format" />
+    <node tag="12" component="Label" behaviour="TT" behaviour-type="STATE-REALISATION" flag="" observation="The label is in track-track format" />
+    <node tag="16" component="Display" behaviour="error" behaviour-type="EXTERNAL-OUTPUT" flag="" observation="Error displayed" />
+    <node tag="17" component="Vector" behaviour="dynamic" behaviour-type="STATE-REALISATION" flag="REVERSION" observation="One end of the vector follows the pointer around" />
+    <node tag="20" component="Vector" behaviour="fixed" behaviour-type="STATE-REALISATION" flag="" observation="Vector is fixed and pointer can be moved freely" />
+    <node tag="22" component="Vector" behaviour="Null" behaviour-type="STATE-REALISATION" flag="REVERSION" observation="No vector displayed" />
+  </OR>
+  <UA>
+    <node tag="3" component="User" behaviour="HitBRLKey" behaviour-type="EVENT" flag="" action="Press the BRL Key" preamble="false" />
+    <node tag="14" component="User" behaviour="leftClick" behaviour-type="EVENT" flag="" action="Left Click" preamble="false" />
+    <node tag="21" component="User" behaviour="hitEsc" behaviour-type="EVENT" flag="" action="Press Escape" preamble="false" />
+    <node tag="24" component="User" behaviour="movePtrOverP" behaviour-type="EVENT" flag="" action="Move pointer over a point" preamble="false" />
+    <node tag="26" component="User" behaviour="movePtrOverT" behaviour-type="EVENT" flag="" action="move pointer over track" preamble="false" />
+    <node tag="29" component="User" behaviour="movePtrOverVS" behaviour-type="EVENT" flag="" action="move pointer over vector start" preamble="false" />
+  </UA>
+  <TP />
+</config>

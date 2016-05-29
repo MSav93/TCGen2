@@ -82,7 +82,7 @@ public class TestCase {
     return blockList.get(0);
   }
 
-  public Integer getLastBlock() {
+  public Integer getEndBlock() {
     return blockList.get(blockList.size() - 1);
   }
 

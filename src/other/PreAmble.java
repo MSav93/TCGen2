@@ -25,7 +25,7 @@ public class PreAmble implements Iterable<TestCase> {
     preAmble.add(tc);
   }
 
-  public Collection<TestCase> getUnderlyingStructure() {
+  public Collection<TestCase> getTestCases() {
     return preAmble;
   }
 }

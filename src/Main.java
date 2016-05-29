@@ -164,6 +164,7 @@ public class Main extends JFrame {
   private Node currentNode;
   private Set<Node> allNodes = new TreeSet<Node>();
   private File loadedFile;
+
   private static final long serialVersionUID = 1L;
 
   /**
@@ -408,9 +409,46 @@ public class Main extends JFrame {
     }
 
     // TP
-    // TODO
+    List<Element> testsFromConfig = config.getChild("TP").getChildren();
+    ArrayList<Element> testsToBeRemoved = new ArrayList<Element>();
+    if (testsFromConfig.size() > 0) {
+      btnGenerateTestCases.doClick();
+      for (Element tc : testsFromConfig) {
+        if (checkElementsAttributes(tc, "tp")) {
+          for (int i = 0; i < tblTCs.getRowCount(); i++) {
+            TestCase testCase = (TestCase) tblTCs.getValueAt(i, 0);
+            if (testCase.getStartBlock() == Integer.parseInt(tc.getAttributeValue("start-block"))
+                && testCase.getEndBlock() == Integer.parseInt(tc.getAttributeValue("end-block"))
+                && testCase.getID() == Integer.parseInt(tc.getAttributeValue("id"))) {
+              testsToBeRemoved.add(tc);
+              break;
+            }
+          }
+        }
+      }
+      for (Element tc : testsToBeRemoved) {
+        testsFromConfig.remove(tc);
+      }
+      if (testsFromConfig.size() == 0) {
+        for (Element tc : testsToBeRemoved) {
+          for (int i = 0; i < tblTCs.getRowCount(); i++) {
+            TestCase testCase = (TestCase) tblTCs.getValueAt(i, 0);
+            if (testCase.getStartBlock().toString().equals(tc.getAttributeValue("start-block"))
+                && testCase.getEndBlock().toString().equals(tc.getAttributeValue("end-block"))
+                && testCase.getID().toString().equals(tc.getAttributeValue("id"))) {
+              selectedTCs.add(testCase);
+              testCase.setSelected(true);
+              currentNode = testCase.getFirstNodeOfEndingBlock();
+              break;
+            }
+          }
+        }
+      }
+    }
+
     updateDisplay();
-    reportConfigDifferences(nodesOfInterest, checkpoints, initialCp, observables, actions);
+    reportConfigDifferences(checkpoints, initialCp, observables, actions, nodesOfInterest,
+        testsFromConfig);
   }
 
   private boolean checkElementsAttributes(Element element, String elementType) {
@@ -504,6 +542,17 @@ public class Main extends JFrame {
           valid = (element.getAttributeValue("preamble") != null);
         }
         return valid;
+      case "tp":
+        if (valid) {
+          valid = (element.getAttributeValue("start-block") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("end-block") != null);
+        }
+        if (valid) {
+          valid = (element.getAttributeValue("id") != null);
+        }
+        return valid;
       default:
         return false;
     }
@@ -547,10 +596,13 @@ public class Main extends JFrame {
     updateORInput();
     updateUAChkBox();
     updateUAInput();
+    updateTblTCs();
+    updateTblTp();
   }
 
-  private void reportConfigDifferences(List<Element> nodesOfInterest, List<Element> checkpoints,
-      Element initialCp, List<Element> observables, List<Element> actions) {
+  private void reportConfigDifferences(List<Element> checkpoints, Element initialCp,
+      List<Element> observables, List<Element> actions, List<Element> nodesOfInterest,
+      List<Element> testsFromConfig) {
     // TODO make this look better
     if (nodesOfInterest.size() > 0 || checkpoints.size() > 0 || initialCp != null
         || observables.size() > 0 || actions.size() > 0) {
@@ -561,22 +613,6 @@ public class Main extends JFrame {
       sb.append("Please check the spelling of element attribute names and values.");
       sb.append(System.getProperty("line.separator"));
       sb.append(System.getProperty("line.separator"));
-
-      if (nodesOfInterest.size() > 0) {
-        sb.append("NOIs:");
-        for (Element noi : nodesOfInterest) {
-          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
-          List<Attribute> noiAttributes = noi.getAttributes();
-          for (int i = 0; i < noiAttributes.size(); i++) {
-            sb.append(noiAttributes.get(i).getName() + "[" + noiAttributes.get(i).getValue() + "]");
-            if (!(i == noiAttributes.size() - 1)) {
-              sb.append(", ");
-            }
-          }
-        }
-        sb.append(System.getProperty("line.separator"));
-        sb.append(System.getProperty("line.separator"));
-      }
 
       if (checkpoints.size() > 0) {
         sb.append("CheckPoints:");
@@ -633,6 +669,38 @@ public class Main extends JFrame {
           for (int i = 0; i < uaAttributes.size(); i++) {
             sb.append(uaAttributes.get(i).getName() + "[" + uaAttributes.get(i).getValue() + "]");
             if (!(i == uaAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (nodesOfInterest.size() > 0) {
+        sb.append("NOIs:");
+        for (Element noi : nodesOfInterest) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> noiAttributes = noi.getAttributes();
+          for (int i = 0; i < noiAttributes.size(); i++) {
+            sb.append(noiAttributes.get(i).getName() + "[" + noiAttributes.get(i).getValue() + "]");
+            if (!(i == noiAttributes.size() - 1)) {
+              sb.append(", ");
+            }
+          }
+        }
+        sb.append(System.getProperty("line.separator"));
+        sb.append(System.getProperty("line.separator"));
+      }
+
+      if (testsFromConfig.size() > 0) {
+        sb.append("TestPath:");
+        for (Element tc : testsFromConfig) {
+          sb.append(System.getProperty("line.separator") + Constants.tabSpacing);
+          List<Attribute> tcAttributes = tc.getAttributes();
+          for (int i = 0; i < tcAttributes.size(); i++) {
+            sb.append(tcAttributes.get(i).getName() + "[" + tcAttributes.get(i).getValue() + "]");
+            if (!(i == tcAttributes.size() - 1)) {
               sb.append(", ");
             }
           }
@@ -752,7 +820,7 @@ public class Main extends JFrame {
     }
     for (int i = 0; i < tblTCs.getRowCount(); i++) {
       TestCase tc = (TestCase) tblTCs.getValueAt(i, 0);
-      System.out.println("TEST CASE: " + tc);
+      System.out.println("TEST CASE: " + tc.getID());
       if (tc.getStartBlock() == currentNode.getBlockIndex()
           || tc.getStartBlock() == convertNodeToReferencedNode(currentNode).getBlockIndex()) {
         System.out.println("0 steps away");
@@ -760,7 +828,6 @@ public class Main extends JFrame {
         tc.clearPreAmble();
         tc.setReachable(true);
       } else {
-        System.out.println("calculating preAmble");
         ArrayList<Integer> blocks = calcPreAmbleSteps(currentNode, tc);
         System.out.println("PreAmble: " + blocks);
         if (blocks == null) {
@@ -786,25 +853,59 @@ public class Main extends JFrame {
   }
 
   private ArrayList<Integer> calcPreAmbleSteps(Node startNode, TestCase tc) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("(test-path-preamble " + startNode.getBlockIndex() + " (");
-    for (Node n : tc.getNodeSteps()) {
-      sb.append(n.getBlockIndex() + " ");
+    List<Node> equivNodes = new ArrayList<Node>();
+    if (hasReferenceNodes(tc.getStartNode())) {
+      equivNodes = getReferenceNodes(tc.getStartNode());
     }
-    sb.setLength(sb.length() - 1);
-    sb.append("))");
+    equivNodes.add(tc.getStartNode());
+    String[] commands = new String[equivNodes.size()];
+    for (int i = 0; i < equivNodes.size(); i++) {
+      commands[i] = buildPreAmbleCommand(startNode, tc, equivNodes, i);
+    }
+
     ArrayList<ArrayList<Integer>> result =
-        sendTestCaseGenCommands(new ArrayList<String>(Arrays.asList(sb.toString())));
+        sendTestCaseGenCommands(new ArrayList<String>(Arrays.asList(commands)));
     if (result.size() > 0) {
-      return result.get(0);
+      int smallestSize = Integer.MAX_VALUE;
+      int smallestIndex = 0;
+      for (int i = 0; i < result.size(); i++) {
+        if (result.get(i).size() < smallestSize) {
+          smallestIndex = i;
+          smallestSize = result.get(i).size();
+        }
+      }
+      return result.get(smallestIndex);
     } else {
       return null;
     }
   }
 
+  private String buildPreAmbleCommand(Node startNode, TestCase tc, List<Node> otherNodes, int i) {
+    StringBuilder sb = new StringBuilder();
+    int prevBlock = Integer.MAX_VALUE;
+    int startIndex;
+    if (otherNodes.size() > 1) {
+      startIndex = 1;
+      sb.append("(test-path-preamble " + startNode.getBlockIndex() + " ("
+          + otherNodes.get(i).getBlockIndex() + " ");
+      prevBlock = tc.getStartBlock();
+    } else {
+      startIndex = 0;
+      sb.append("(test-path-preamble " + startNode.getBlockIndex() + " (");
+    }
+    for (int j = startIndex; j < tc.getNodeLength(); j++) {
+      Node nextNode = tc.getNodeSteps().get(j);
+      if (prevBlock != nextNode.getBlockIndex()) {
+        sb.append(nextNode.getBlockIndex() + " ");
+        prevBlock = nextNode.getBlockIndex();
+      }
+    }
+    sb.setLength(sb.length() - 1);
+    sb.append("))");
+    return sb.toString();
+  }
+
   private ArrayList<PreAmble> matchPathToTests(ArrayList<Integer> blocks) {
-    System.out.println("INDEX: " + convertIndexToReferencedIndex(17));
-    System.out.println("INDEX2: " + convertIndexToReferencedIndex(1));
     ArrayList<TestCase> tblTestCases = new ArrayList<TestCase>();
     for (int i = 0; i < tblTCs.getRowCount(); i++) {
       tblTestCases.add((TestCase) tblTCs.getValueAt(i, 0));
@@ -836,8 +937,6 @@ public class Main extends JFrame {
 
   private boolean isStrongMatch(List<Integer> blocks, TestCase tc) {
     ArrayList<Integer> testBlocks = tc.getBlocks();
-    System.out.println("TEST BLOCKS: " + testBlocks);
-    System.out.println("PRE BLOCKS: " + blocks);
     if (blocks.size() == testBlocks.size()) {
       for (int i = 0; i < blocks.size(); i++) {
         if (convertIndexToReferencedIndex(blocks.get(i)) != convertIndexToReferencedIndex(
@@ -848,7 +947,6 @@ public class Main extends JFrame {
     } else {
       return false;
     }
-    System.out.println(tc + " is a strong match");
     return true;
   }
 
@@ -856,8 +954,6 @@ public class Main extends JFrame {
     ArrayList<Integer> testBlocks = tc.getBlocks();
     if (blocks.size() >= testBlocks.size()) {
       for (int i = 0; i < testBlocks.size(); i++) {
-        System.out.println("COMPARING " + convertIndexToReferencedIndex(testBlocks.get(i)) + " and "
-            + convertIndexToReferencedIndex(blocks.get(i)));
         if (convertIndexToReferencedIndex(blocks.get(i)) != convertIndexToReferencedIndex(
             testBlocks.get(i))) {
           return false;
@@ -866,7 +962,6 @@ public class Main extends JFrame {
     } else {
       return false;
     }
-    System.out.println(tc + " is a part match");
     return true;
   }
 
@@ -1006,10 +1101,20 @@ public class Main extends JFrame {
       }
     }
 
+    Element tp = new Element("TP");
+    for (TestCase testCase : selectedTCs) {
+      Element nodeToAdd = new Element("testcase");
+      nodeToAdd.setAttribute("start-block", testCase.getStartBlock().toString());
+      nodeToAdd.setAttribute("end-block", testCase.getEndBlock().toString());
+      nodeToAdd.setAttribute("id", testCase.getID().toString());
+      tp.addContent(nodeToAdd);
+    }
+
     config.addContent(noi);
     config.addContent(cp);
     config.addContent(or);
     config.addContent(ua);
+    config.addContent(tp);
     doc.addContent(config);
     return doc;
   }
@@ -1581,14 +1686,10 @@ public class Main extends JFrame {
     btnAddNOI.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent arg0) {
         for (int i : tblNOI.getSelectedRows()) {
-          for (Node n : allNodes) {
-            Node tblNode = ((Node) tblNOI.getValueAt(i, 0));
-            if (n.equalsSimple(tblNode)) {
-              n.setNoi(true);
-              n.setCp(false);
-              selectedNOIs.add(n);
-            }
-          }
+          Node tblNode = ((Node) tblNOI.getValueAt(i, 0));
+          tblNode.setNoi(true);
+          tblNode.setCp(false);
+          selectedNOIs.add(tblNode);
         }
         tblNOI.repaint();
       }
@@ -1700,27 +1801,6 @@ public class Main extends JFrame {
               selectedTC.setSelected(true);
               currentNode = selectedTC.getFirstNodeOfEndingBlock();
             }
-          } else {
-            // TODO update this
-            // currently does not show individual test cases or test case ids. Can be very confusing
-            // Have to update cell text and tooltip text majorly
-            JScrollPane scrollPane3 = new JScrollPane();
-            scrollPane3.setViewportView(tblPreAmble);
-            ((TestCasePreAmbleModel) tblPreAmble.getModel()).addData(selectedTC.getPreAmble());
-            int result = JOptionPane.showConfirmDialog(null, scrollPane3, "Select PreAmble",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-            System.out.println(result + " = " + JOptionPane.OK_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-              PreAmble preAmble =
-                  (PreAmble) tblPreAmble.getValueAt(tblPreAmble.getSelectedRow(), 0);
-              for (TestCase preAmbleTC : preAmble) {
-                selectedTCs.add(preAmbleTC);
-                preAmbleTC.setSelected(true);
-              }
-              selectedTCs.add(selectedTC);
-              selectedTC.setSelected(true);
-              currentNode = selectedTC.getFirstNodeOfEndingBlock();
-            }
           }
         }
         if (Constants.nodeReversionFlags.contains(currentNode.getFlag())) {
@@ -1745,7 +1825,7 @@ public class Main extends JFrame {
         tblTemp.setRowSelectionAllowed(false);
         tblTemp.setTableHeader(null);
         ((TestCaseModel) tblTemp.getModel())
-            .addData(selectedTC.getPreAmble().get(0).getUnderlyingStructure());
+            .addData(selectedTC.getPreAmble().get(0).getTestCases());
         JScrollPane scrollPane4 = new JScrollPane();
         // scrollPane4.setBounds(566, 126, 550, 495);
         scrollPane4.setViewportView(tblTemp);
@@ -1768,9 +1848,11 @@ public class Main extends JFrame {
       public void actionPerformed(ActionEvent e) {
         if (!selectedTCs.isEmpty()) {
           // Remove most recent Test Case added
-          selectedTCs.get(selectedTCs.size() - 1).setSelected(false);
-          selectedTCs.remove(selectedTCs.size() - 1);
-          // Remove that test cases preAmble if it has one
+          TestCase tcToBeRemoved = selectedTCs.get(selectedTCs.size() - 1);
+          selectedTCs.remove(tcToBeRemoved);
+          if (!selectedTCs.contains(tcToBeRemoved)) {
+            tcToBeRemoved.setSelected(false);
+          }
           if (selectedTCs.isEmpty()) {
             // If the removed test case was the only one reset initial node
             currentNode = initialNode;
@@ -1926,15 +2008,42 @@ public class Main extends JFrame {
     return connectionResult;
   }
 
-  private Node convertNodeToReferencedNode(Node node) {
-    Node testNode = new Node(node.getTag(), node.getComponent(), node.getBehaviourType(),
-        node.getBehaviour(), "", node.getBlockIndex());
+  private boolean hasReferenceNodes(Node node) {
     for (Node n : allNodes) {
-      if (n.equalsSimple(testNode) && !Constants.nodeReversionFlags.contains(n.getFlag())) {
-        return n;
+      if (n.equalsSimple(node) && Constants.nodeReversionFlags.contains(n.getFlag())
+          && !n.equals(node)) {
+        return true;
       }
     }
-    return null;
+    return false;
+  }
+
+  private List<Node> getReferenceNodes(Node node) {
+    if (hasReferenceNodes(node)) {
+      ArrayList<Node> referenceNodes = new ArrayList<Node>();
+      for (Node n : allNodes) {
+        if (n.equalsSimple(node) && Constants.nodeReversionFlags.contains(n.getFlag())
+            && !n.equals(node)) {
+          referenceNodes.add(n);
+        }
+      }
+      return referenceNodes;
+    } else {
+      return null;
+    }
+  }
+
+  private Node convertNodeToReferencedNode(Node node) {
+    if (Constants.nodeReversionFlags.contains(node.getFlag())) {
+      Node testNode = new Node(node.getTag(), node.getComponent(), node.getBehaviourType(),
+          node.getBehaviour(), "", node.getBlockIndex());
+      for (Node n : allNodes) {
+        if (n.equalsSimple(testNode) && !Constants.nodeReversionFlags.contains(n.getFlag())) {
+          return n;
+        }
+      }
+    }
+    return node;
   }
 
   private Integer convertIndexToReferencedIndex(int index) {

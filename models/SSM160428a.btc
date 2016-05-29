@@ -1,0 +1,114 @@
+#RT R1 1 R2 2 R3 3 R4 4 R4E 4E R5 5 R6 6 R7 7 R8 8 R9 9 R9a 9a R9b 9b R10 10 R11 11 R11a 11a R11b 11b R12 12 R13 13 R13E 13E R14 14 R15 15 R16 16 R16a 16a R16b 16b R17 17 R18 18 R19 19 R20 20 R21 21 R22 22 R23 23 R24 24 R25 25 R26 26 R27 27 R28 28 R29 29 R30 30 R31 31 R32 32 R33 33 
+R34	34
+R35	35
+R36	36
+R37	37
+R38	38
+R39	39
+R40	40
+R41 41
+R41a 41a 
+R41b 41b
+R42	42
+R43	43
+R44	44
+R45	45
+R46	46
+R47	47
+R48	48
+R49	49
+R50	50
+R51	51
+R52	52
+R53	53
+R54	54
+R55	55
+R56	56
+R57	57
+R58	58
+R59	59
+R60	60
+R61	61
+R62	62
+R63	63
+R64	64
+
+#C C1 SSM
+#S 1 Stopped 
+#S 2 Unknown
+#S 3 Ok
+#S 4 FailedST
+#S 5 FailedSensors
+#L 6 FailedST
+#L 7 NOT(FailedST)
+#L 8 FailedSensors
+#L 9 NOT(FailedSensors)
+#L 10 else
+#L 11 Ok
+
+#C C2 TimerST
+#S 1 running
+#S 3 stopped
+#G 4 running
+#G 5 stopped
+#L 6 stopped
+#E 7 timeout
+
+#C C3 Operator
+#E 1 start
+#E 2 stop
+#E 3 restart
+
+#C C4 Filter
+#E 1 valid(s) 
+#E 3 validST
+#E 4 invalid(s) 
+#E 6 invalidST 
+#A 10 ||s:{s1,s2}
+#A 11 []s:{s1,s2}
+#A 12 ||&s:{s1,s2}
+#E 13 someOtherValid
+
+#C C15 Timer //generic, with parameter s
+#S 1 s:=running
+#S 3 s:=stopped
+#G 4 s=running
+#G 5 s=stopped
+#L 6 s=running
+#L 7 NOT(s=running)
+#E 8 timeout(s) 
+#E 9 pause // needed to break FailSensors loop
+#A 10 ||s:{s1,s2}
+#A 11 []s:{s1,s2}
+#A 12 ||&s:{s1,s2}
+#L 13 else
+#S 14 o:=allStopped
+#S 15 o:=someRunning
+#G 16 o=someRunning
+#L 17 NOT(o=someRunning)
+#E 18 lastOtherStops
+
+#T R1 C1 1;; R1 C2 3;; R1 C15 14;; R1 C15 3; R2 C3 1; R3 C1 2;; R4 C15 15;; R5 C15 1; R6 C2 1 #P{
+	R7 C3 2; R1 C1 1 ^
+	R8 C3 3; R3 C1 2 ^
+//		R35 C12 1; R35 C4 6; R35 C12 1 ^ // removed for now
+	R12 C4 1; R13 C1 3;; R14 C15 1;; R6 C2 1 ^
+//	R16 C4 10; R16 C4 4; R16 C4 10 ^
+	R20 C4 3 #N{
+		R21 C1 8; R6 C2 1 ^
+		R24 C1 6; R25 C1 3;; R6 C2 1 ^
+		}
+	R30 C2 4; R31 C2 7;; R32 C2 3 #N{
+		R33 C1 8; R30 C2 4 ^
+		R34 C1 10; R34 C1 4; R30 C2 4 ^
+		}
+	R41 C15 4; R42 C15 8;; R43 C15 3 #N{
+		R44 C15 17; R45 C1 5; R41 C15 4 ^
+		R46 C1 10; R41 C15 4 ^
+		}
+	R50 C15 16; R51 C15 18;; R52 C15 14 #N{
+		R54 C15 7; R55 C1 5; R50 C15 16 ^
+		R56 C1 10; R50 C15 16 ^
+		}
+	R60 C4 13; R61 C1 3;; R62 C15 15; R6 C2 1 ^
+	}

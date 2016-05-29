@@ -6,7 +6,7 @@ import java.util.Arrays;
 
 public final class Constants {
 
-  public static final String version = "0.2";
+  public static final String version = "0.3";
 
   public static final String noiTabName = "Nodes of Interest";
 
@@ -38,8 +38,7 @@ public final class Constants {
   public static final String tabSpacing = "        ";
 
   public static final ArrayList<String> acceptedCPBehaviourTypes =
-      new ArrayList<String>(Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT",
-          "EXTERNAL-INPUT", "EVENT"));
+      new ArrayList<String>(Arrays.asList("STATE-REALISATION"));
 
   public static final ArrayList<String> acceptedNOIBehaviourTypes = new ArrayList<String>(
       Arrays.asList("STATE-REALISATION", "EXTERNAL-OUTPUT", "INTERNAL-OUTPUT"));
